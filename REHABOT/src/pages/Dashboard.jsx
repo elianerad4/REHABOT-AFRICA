@@ -137,15 +137,24 @@ export default function Dashboard() {
 
         {/* Patient List Header */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900">Your Patients</h3>
-          <button
-            onClick={() => navigate('/add-patient')}
-            className="bg-green-600 hover:bg-green-700 text-white text-sm 
-                       font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            + Add Patient
-          </button>
-        </div>
+  <h3 className="font-semibold text-gray-900">Your Patients</h3>
+  <div className="flex items-center gap-3">
+    <button
+      onClick={() => navigate('/reports')}
+      className="border border-gray-300 text-gray-700 hover:bg-gray-50 
+                 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+    >
+      Reports
+    </button>
+    <button
+      onClick={() => navigate('/add-patient')}
+      className="bg-green-600 hover:bg-green-700 text-white text-sm 
+                 font-medium px-4 py-2 rounded-lg transition-colors"
+    >
+      + Add Patient
+    </button>
+  </div>
+</div>
 
         {/* Patient List */}
         {patients.length === 0 ? (

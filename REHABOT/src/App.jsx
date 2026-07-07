@@ -1,3 +1,4 @@
+import Reports from './pages/Reports'
 import PatientDetail from './pages/PatientDetail'
 import AddPatient from './pages/AddPatient'
 import CheckEmail from './pages/CheckEmail'
@@ -13,6 +14,14 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route
+  path="/reports"
+  element={
+    <ProtectedRoute>
+      <Reports />
+    </ProtectedRoute>
+  }
+/>
           <Route
   path="/patient/:id"
   element={

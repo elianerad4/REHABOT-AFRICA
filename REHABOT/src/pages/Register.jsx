@@ -1,3 +1,4 @@
+import Logo from '../components/ui/Logo'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -50,11 +51,9 @@ export default function Register() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-green-600 rounded-xl mx-auto mb-3 
-                          flex items-center justify-center">
-            <span className="text-white font-bold text-xl">R</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
+          <div className="flex justify-center mb-2">
+  <Logo size="lg" />
+</div>
           <p className="text-gray-500 text-sm mt-1">Start your 14-day free trial</p>
         </div>
 

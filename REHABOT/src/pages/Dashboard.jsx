@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import Logo from '../components/ui/Logo'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -80,17 +81,12 @@ export default function Dashboard() {
       {/* Top Bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 
                       flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center 
-                          justify-center">
-            <span className="text-white font-bold text-sm">R</span>
-          </div>
-          <div>
-            <h1 className="font-bold text-gray-900 text-sm">Rehabot Africa</h1>
-            <p className="text-xs text-gray-500">
-              {profile?.clinic_name ?? 'Your Clinic'}
-            </p>
-          </div>
+        <div className="flex items-center gap-4">
+          <Logo size="sm" />
+          <span className="text-xs text-gray-400 border-l border-gray-200 
+                           pl-4 hidden sm:block">
+            {profile?.clinic_name ?? 'Your Clinic'}
+          </span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600 hidden sm:block">
@@ -137,24 +133,24 @@ export default function Dashboard() {
 
         {/* Patient List Header */}
         <div className="flex items-center justify-between mb-4">
-  <h3 className="font-semibold text-gray-900">Your Patients</h3>
-  <div className="flex items-center gap-3">
-    <button
-      onClick={() => navigate('/reports')}
-      className="border border-gray-300 text-gray-700 hover:bg-gray-50 
-                 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-    >
-      Reports
-    </button>
-    <button
-      onClick={() => navigate('/add-patient')}
-      className="bg-green-600 hover:bg-green-700 text-white text-sm 
-                 font-medium px-4 py-2 rounded-lg transition-colors"
-    >
-      + Add Patient
-    </button>
-  </div>
-</div>
+          <h3 className="font-semibold text-gray-900">Your Patients</h3>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/reports')}
+              className="border border-gray-300 text-gray-700 hover:bg-gray-50 
+                         text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              Reports
+            </button>
+            <button
+              onClick={() => navigate('/add-patient')}
+              className="bg-green-600 hover:bg-green-700 text-white text-sm 
+                         font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              + Add Patient
+            </button>
+          </div>
+        </div>
 
         {/* Patient List */}
         {patients.length === 0 ? (

@@ -1,3 +1,4 @@
+import Admin from './pages/Admin'
 import Reports from './pages/Reports'
 import PatientDetail from './pages/PatientDetail'
 import AddPatient from './pages/AddPatient'
@@ -14,6 +15,14 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route
+  path="/admin"
+  element={
+    <ProtectedRoute>
+      <Admin />
+    </ProtectedRoute>
+  }
+/>
           <Route
   path="/reports"
   element={

@@ -96,6 +96,13 @@ export default function Dashboard() {
             onClick={handleLogout}
             className="text-sm text-red-500 hover:text-red-700 font-medium"
           >
+            <button
+  onClick={() => navigate('/admin')}
+  className="text-sm text-orange-600 font-medium hover:text-orange-700 
+             hidden sm:block"
+>
+  Admin
+</button>
             Logout
           </button>
         </div>

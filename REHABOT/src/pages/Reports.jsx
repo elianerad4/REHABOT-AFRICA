@@ -14,11 +14,6 @@ export default function Reports() {
   const [reportHtml, setReportHtml] = useState(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchPatients()
-    setDefaultWeek()
-  }, [])
-
   async function fetchPatients() {
     const { data } = await supabase
       .from('patients')
@@ -39,6 +34,11 @@ export default function Reports() {
     setWeekStart(monday.toISOString().split('T')[0])
     setWeekEnd(sunday.toISOString().split('T')[0])
   }
+
+  useEffect(() => {
+    fetchPatients()
+    setDefaultWeek()
+  }, [])
 
   async function generateReport() {
     if (!selectedPatient) {

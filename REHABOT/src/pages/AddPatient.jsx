@@ -25,11 +25,10 @@ export default function AddPatient() {
     setError('')
     setLoading(true)
 
-    let phone = form.phone_number.trim()
+    let phone = form.phone_number.replace(/[\s\-()]/g, '').trim()
     if (phone.startsWith('0')) {
       phone = '+255' + phone.slice(1)
-    }
-    if (!phone.startsWith('+')) {
+    } else if (!phone.startsWith('+')) {
       phone = '+' + phone
     }
 

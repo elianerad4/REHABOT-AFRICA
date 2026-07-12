@@ -20,10 +20,6 @@ export default function Admin() {
   const [physios, setPhysios] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
 
-  useEffect(() => {
-    checkAdmin()
-  }, [user])
-
   async function checkAdmin() {
     const { data } = await supabase
       .from('profiles')
@@ -72,12 +68,18 @@ export default function Admin() {
         ...p,
         patientCount: patientList.filter(pt => pt.physio_id === p.id).length,
         activePatients: patientList.filter(pt => pt.physio_id === p.id && pt.status === 'active').length,
-        messageCount: messageList.length
+        messageCount: messageList.filter(m =>
+          patientList.some(pt => pt.id === m.patient_id && pt.physio_id === p.id)
+        ).length
       }))
 
     setPhysios(enriched)
     setLoading(false)
   }
+
+  useEffect(() => {
+    checkAdmin()
+  }, [user])
 
   async function updateSubscription(physioId, status) {
     await supabase
@@ -100,6 +102,7 @@ export default function Admin() {
   }
 
   function trialDaysLeft(trialEndsAt) {
+    if (!trialEndsAt) return 0
     const now = new Date()
     const end = new Date(trialEndsAt)
     const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24))

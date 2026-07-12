@@ -17,13 +17,6 @@ export default function Dashboard() {
     discharged: 0
   })
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile()
-      fetchPatients()
-    }
-  }, [user])
-
   async function fetchProfile() {
     const { data } = await supabase
       .from('profiles')
@@ -52,6 +45,13 @@ export default function Dashboard() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (user) {
+      fetchProfile()
+      fetchPatients()
+    }
+  }, [user])
+
   async function handleLogout() {
     await supabase.auth.signOut()
     navigate('/login')
@@ -60,6 +60,7 @@ export default function Dashboard() {
   function getStatusColor(status) {
     if (status === 'active') return 'bg-green-100 text-green-700'
     if (status === 'paused') return 'bg-yellow-100 text-yellow-700'
+    if (status === 'discharged') return 'bg-gray-100 text-gray-500'
     return 'bg-gray-100 text-gray-500'
   }
 
@@ -93,16 +94,15 @@ export default function Dashboard() {
             {profile?.full_name ?? user?.email}
           </span>
           <button
+            onClick={() => navigate('/admin')}
+            className="text-sm text-orange-600 font-medium hover:text-orange-700"
+          >
+            Admin
+          </button>
+          <button
             onClick={handleLogout}
             className="text-sm text-red-500 hover:text-red-700 font-medium"
           >
-            <button
-  onClick={() => navigate('/admin')}
-  className="text-sm text-orange-600 font-medium hover:text-orange-700 
-             hidden sm:block"
->
-  Admin
-</button>
             Logout
           </button>
         </div>

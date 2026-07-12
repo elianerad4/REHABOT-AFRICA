@@ -13,19 +13,20 @@ export default function PatientDetail() {
   const [painLogs, setPainLogs] = useState([])
   const [adherenceLogs, setAdherenceLogs] = useState([])
   const [messages, setMessages] = useState([])
+  const [exercises, setExercises] = useState([])
+  const [patientExercises, setPatientExercises] = useState([])
   const [loading, setLoading] = useState(true)
+  const [exercisesLoading, setExercisesLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
-
-  useEffect(() => {
-    fetchAll()
-  }, [id])
 
   async function fetchAll() {
     const [
       { data: patientData },
       { data: painData },
       { data: adherenceData },
-      { data: messageData }
+      { data: messageData },
+      { data: exerciseData },
+      { data: patientExerciseData }
     ] = await Promise.all([
       supabase.from('patients').select('*').eq('id', id).single(),
       supabase.from('pain_logs').select('*').eq('patient_id', id)
@@ -33,14 +34,47 @@ export default function PatientDetail() {
       supabase.from('adherence_logs').select('*').eq('patient_id', id)
         .order('log_date', { ascending: false }).limit(7),
       supabase.from('message_logs').select('*').eq('patient_id', id)
-        .order('sent_at', { ascending: false }).limit(20)
+        .order('sent_at', { ascending: false }).limit(20),
+      supabase.from('exercises').select('*').eq('is_global', true).order('name'),
+      supabase.from('patient_exercises').select('*, exercise:exercises(*)')
+        .eq('patient_id', id)
     ])
 
     setPatient(patientData)
     setPainLogs(painData ?? [])
     setAdherenceLogs(adherenceData ?? [])
     setMessages(messageData ?? [])
+    setExercises(exerciseData ?? [])
+    setPatientExercises(patientExerciseData ?? [])
     setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchAll()
+  }, [id])
+
+  async function assignExercise(exerciseId) {
+    setExercisesLoading(true)
+    await supabase.from('patient_exercises').insert({
+      patient_id: id,
+      exercise_id: exerciseId,
+      sets: 3,
+      reps: 10,
+      frequency_per_week: 5
+    })
+    const { data } = await supabase
+      .from('patient_exercises')
+      .select('*, exercise:exercises(*)')
+      .eq('patient_id', id)
+    setPatientExercises(data ?? [])
+    setExercisesLoading(false)
+  }
+
+  async function removePatientExercise(peId) {
+    setExercisesLoading(true)
+    await supabase.from('patient_exercises').delete().eq('id', peId)
+    setPatientExercises(prev => prev.filter(pe => pe.id !== peId))
+    setExercisesLoading(false)
   }
 
   async function updateStatus(newStatus) {
@@ -54,6 +88,7 @@ export default function PatientDetail() {
   function getStatusColor(status) {
     if (status === 'active') return 'bg-green-100 text-green-700'
     if (status === 'paused') return 'bg-yellow-100 text-yellow-700'
+    if (status === 'discharged') return 'bg-gray-100 text-gray-500'
     return 'bg-gray-100 text-gray-500'
   }
 
@@ -174,7 +209,7 @@ export default function PatientDetail() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
-          {['overview', 'messages'].map((tab) => (
+          {['overview', 'messages', 'exercises'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -319,6 +354,108 @@ export default function PatientDetail() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Exercises Tab */}
+        {activeTab === 'exercises' && (
+          <div className="space-y-6">
+            {/* Currently assigned exercises */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 mb-1">
+                Assigned Exercises
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Exercises currently assigned to this patient
+              </p>
+              {patientExercises.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  No exercises assigned yet.
+                  <br />Select from the list below to assign.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {patientExercises.map((pe) => (
+                    <div key={pe.id}
+                      className="flex items-center justify-between p-3 
+                                 bg-gray-50 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 text-sm">
+                          {pe.exercise?.name}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {pe.sets} sets × {pe.reps} reps · {pe.frequency_per_week}x/week
+                          {pe.exercise?.description && (
+                            <> — {pe.exercise.description}</>
+                          )}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removePatientExercise(pe.id)}
+                        disabled={exercisesLoading}
+                        className="text-red-500 hover:text-red-700 text-xs font-medium
+                                   px-3 py-1.5 rounded-lg hover:bg-red-50 
+                                   transition-colors disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Available exercises */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 mb-1">
+                Exercise Library
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Global exercises — tap to assign to this patient
+              </p>
+              {exercises.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  No exercises found in the library.
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {exercises
+                    .filter(ex => !patientExercises.some(pe => pe.exercise_id === ex.id))
+                    .map((ex) => (
+                      <div key={ex.id}
+                        className="flex items-center justify-between p-3 
+                                   border border-gray-100 rounded-lg
+                                   hover:border-green-200 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 text-sm">
+                            {ex.name}
+                          </p>
+                          {ex.description && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {ex.description}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => assignExercise(ex.id)}
+                          disabled={exercisesLoading}
+                          className="text-green-600 hover:text-green-700 text-xs 
+                                     font-medium px-3 py-1.5 rounded-lg 
+                                     hover:bg-green-50 transition-colors 
+                                     disabled:opacity-50"
+                        >
+                          Assign
+                        </button>
+                      </div>
+                    ))}
+                  {exercises.filter(ex => !patientExercises.some(pe => pe.exercise_id === ex.id)).length === 0 && (
+                    <div className="text-center py-4 text-gray-400 text-sm">
+                      All exercises are already assigned.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

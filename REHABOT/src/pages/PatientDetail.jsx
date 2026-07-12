@@ -17,6 +17,9 @@ export default function PatientDetail() {
   const [patientExercises, setPatientExercises] = useState([])
   const [loading, setLoading] = useState(true)
   const [exercisesLoading, setExercisesLoading] = useState(false)
+  const [showAddExercise, setShowAddExercise] = useState(false)
+  const [newExerciseName, setNewExerciseName] = useState('')
+  const [newExerciseDescription, setNewExerciseDescription] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
 
   async function fetchAll() {
@@ -74,6 +77,23 @@ export default function PatientDetail() {
     setExercisesLoading(true)
     await supabase.from('patient_exercises').delete().eq('id', peId)
     setPatientExercises(prev => prev.filter(pe => pe.id !== peId))
+    setExercisesLoading(false)
+  }
+
+  async function addNewExercise() {
+    if (!newExerciseName.trim()) return
+    setExercisesLoading(true)
+    const { data } = await supabase
+      .from('exercises')
+      .insert({ name: newExerciseName.trim(), description: newExerciseDescription.trim(), is_global: true })
+      .select()
+      .single()
+    if (data) {
+      setExercises(prev => [...prev, data])
+    }
+    setNewExerciseName('')
+    setNewExerciseDescription('')
+    setShowAddExercise(false)
     setExercisesLoading(false)
   }
 
@@ -410,9 +430,61 @@ export default function PatientDetail() {
               <h3 className="font-semibold text-gray-900 mb-1">
                 Exercise Library
               </h3>
-              <p className="text-xs text-gray-500 mb-4">
-                Global exercises — tap to assign to this patient
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-gray-500">
+                  Global exercises — tap to assign to this patient
+                </p>
+                <button
+                  onClick={() => setShowAddExercise(!showAddExercise)}
+                  className="text-green-600 hover:text-green-700 text-xs font-medium
+                             px-3 py-1.5 rounded-lg hover:bg-green-50 transition-colors"
+                >
+                  + New Exercise
+                </button>
+              </div>
+
+              {showAddExercise && (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-gray-900 text-sm mb-3">
+                    Add New Exercise
+                  </h4>
+                  <input
+                    type="text"
+                    placeholder="Exercise name"
+                    value={newExerciseName}
+                    onChange={(e) => setNewExerciseName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                               mb-2 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  />
+                  <textarea
+                    placeholder="Description (optional)"
+                    value={newExerciseDescription}
+                    onChange={(e) => setNewExerciseDescription(e.target.value)}
+                    rows={2}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                               mb-3 focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={addNewExercise}
+                      disabled={exercisesLoading || !newExerciseName.trim()}
+                      className="bg-green-600 hover:bg-green-700 text-white text-xs
+                                 font-medium px-4 py-1.5 rounded-lg transition-colors
+                                 disabled:opacity-50"
+                    >
+                      {exercisesLoading ? 'Saving...' : 'Save Exercise'}
+                    </button>
+                    <button
+                      onClick={() => { setShowAddExercise(false); setNewExerciseName(''); setNewExerciseDescription('') }}
+                      className="text-gray-500 hover:text-gray-700 text-xs font-medium
+                                 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {exercises.length === 0 ? (
                 <div className="text-center py-8 text-gray-400 text-sm">
                   No exercises found in the library.

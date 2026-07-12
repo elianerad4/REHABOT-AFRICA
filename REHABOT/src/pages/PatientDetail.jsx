@@ -38,7 +38,7 @@ export default function PatientDetail() {
         .order('log_date', { ascending: false }).limit(7),
       supabase.from('message_logs').select('*').eq('patient_id', id)
         .order('sent_at', { ascending: false }).limit(20),
-      supabase.from('exercises').select('*').eq('is_global', true).order('name'),
+      supabase.from('exercises').select('*').eq('is_global', true).order('name_en'),
       supabase.from('patient_exercises').select('*, exercise:exercises(*)')
         .eq('patient_id', id)
     ])
@@ -85,7 +85,7 @@ export default function PatientDetail() {
     setExercisesLoading(true)
     const { data } = await supabase
       .from('exercises')
-      .insert({ name: newExerciseName.trim(), description: newExerciseDescription.trim(), is_global: true })
+      .insert({ name_en: newExerciseName.trim(), description_en: newExerciseDescription.trim(), is_global: true })
       .select()
       .single()
     if (data) {
@@ -401,12 +401,12 @@ export default function PatientDetail() {
                                  bg-gray-50 rounded-lg">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 text-sm">
-                          {pe.exercise?.name}
+                          {pe.exercise?.name_en}
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {pe.sets} sets × {pe.reps} reps · {pe.frequency_per_week}x/week
-                          {pe.exercise?.description && (
-                            <> — {pe.exercise.description}</>
+                          {pe.exercise?.description_en && (
+                            <> — {pe.exercise.description_en}</>
                           )}
                         </p>
                       </div>
@@ -500,11 +500,14 @@ export default function PatientDetail() {
                                    hover:border-green-200 transition-colors">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900 text-sm">
-                            {ex.name}
+                            {ex.name_en}
                           </p>
-                          {ex.description && (
+                          <p className="text-xs text-gray-400">
+                            {ex.name_sw}
+                          </p>
+                          {ex.description_en && (
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {ex.description}
+                              {ex.description_en}
                             </p>
                           )}
                         </div>

@@ -18,14 +18,7 @@ export default function Settings() {
   const [fetching, setFetching] = useState(true)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
-  const [darkMode, setDarkMode] = useState(false)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('darkMode')
-    if (saved === 'true') {
-      setDarkMode(true)
-    }
-  }, [])
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
 
   useEffect(() => {
     if (!user) return

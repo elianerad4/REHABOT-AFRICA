@@ -14,8 +14,8 @@ import Dashboard from './pages/Dashboard'
 
 export default function App() {
   useEffect(() => {
-    const darkMode = localStorage.getItem('darkMode')
-    if (darkMode === 'true') {
+    const saved = localStorage.getItem('darkMode')
+    if (saved === 'true') {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')

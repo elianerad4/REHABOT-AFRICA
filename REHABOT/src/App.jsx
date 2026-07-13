@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import Admin from './pages/Admin'
 import Reports from './pages/Reports'
 import PatientDetail from './pages/PatientDetail'
@@ -7,25 +6,18 @@ import CheckEmail from './pages/CheckEmail'
 import Settings from './pages/Settings'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 
 export default function App() {
-  useEffect(() => {
-    const saved = localStorage.getItem('darkMode')
-    if (saved === 'true') {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }, [])
-
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <ThemeProvider>
+          <Routes>
           <Route
   path="/admin"
   element={
@@ -71,7 +63,8 @@ export default function App() {
     </ProtectedRoute>
   }
 />
-        </Routes>
+          </Routes>
+        </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
   )

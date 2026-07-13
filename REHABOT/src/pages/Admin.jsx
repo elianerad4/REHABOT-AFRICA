@@ -90,9 +90,9 @@ export default function Admin() {
   }
 
   function getStatusColor(status) {
-    if (status === 'active') return 'bg-green-100 text-green-700'
-    if (status === 'trial') return 'bg-yellow-100 text-yellow-700'
-    return 'bg-red-100 text-red-700'
+    if (status === 'active') return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+    if (status === 'trial') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
+    return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
   }
 
   function formatDate(date) {
@@ -111,11 +111,11 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-green-600 border-t-transparent 
+          <div className="w-10 h-10 border-4 border-green-600 dark:border-green-400 border-t-transparent 
                           rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-500 text-sm">Loading admin panel...</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading admin panel...</p>
         </div>
       </div>
     )
@@ -124,21 +124,21 @@ export default function Admin() {
   if (!authorized) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 
                       flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Logo size="sm" />
-          <span className="text-xs font-semibold text-orange-600 bg-orange-50 
-                           border border-orange-200 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 
+                           border border-orange-200 dark:border-orange-700 px-2 py-0.5 rounded-full">
             ADMIN
           </span>
         </div>
         <button
           onClick={() => navigate('/dashboard')}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
         >
           ← Back to Dashboard
         </button>
@@ -148,10 +148,10 @@ export default function Admin() {
 
         {/* Header */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             Rehabot Africa — Admin Panel
           </h2>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Overview of all clinics and platform activity.
           </p>
         </div>
@@ -159,25 +159,25 @@ export default function Admin() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {[
-            { label: 'Total Physios', value: stats.totalPhysios, color: 'text-gray-900' },
-            { label: 'On Trial', value: stats.trialPhysios, color: 'text-yellow-600' },
-            { label: 'Paying', value: stats.activePhysios, color: 'text-green-600' },
-            { label: 'Total Patients', value: stats.totalPatients, color: 'text-gray-900' },
-            { label: 'Active Patients', value: stats.activePatients, color: 'text-green-600' },
-            { label: 'Total Messages', value: stats.totalMessages, color: 'text-blue-600' }
+            { label: 'Total Physios', value: stats.totalPhysios, color: 'text-gray-900 dark:text-white' },
+            { label: 'On Trial', value: stats.trialPhysios, color: 'text-yellow-600 dark:text-yellow-400' },
+            { label: 'Paying', value: stats.activePhysios, color: 'text-green-600 dark:text-green-400' },
+            { label: 'Total Patients', value: stats.totalPatients, color: 'text-gray-900 dark:text-white' },
+            { label: 'Active Patients', value: stats.activePatients, color: 'text-green-600 dark:text-green-400' },
+            { label: 'Total Messages', value: stats.totalMessages, color: 'text-blue-600 dark:text-blue-400' }
           ].map((stat) => (
             <div key={stat.label}
-              className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
               <div className={`text-2xl font-bold ${stat.color}`}>
                 {stat.value}
               </div>
-              <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{stat.label}</div>
             </div>
           ))}
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-6 w-fit">
           {['overview', 'clinics'].map((tab) => (
             <button
               key={tab}
@@ -185,8 +185,8 @@ export default function Admin() {
               className={`px-4 py-1.5 rounded-md text-sm font-medium 
                           transition-colors capitalize ${
                 activeTab === tab
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               {tab}
@@ -199,13 +199,13 @@ export default function Admin() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
             {/* Trial Expiring Soon */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                 ⚠️ Trials Expiring Soon
               </h3>
               {physios.filter(p => p.subscription_status === 'trial' && 
                 trialDaysLeft(p.trial_ends_at) <= 7).length === 0 ? (
-                <p className="text-sm text-gray-400">No trials expiring in next 7 days.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">No trials expiring in next 7 days.</p>
               ) : (
                 <div className="space-y-3">
                   {physios
@@ -214,12 +214,12 @@ export default function Admin() {
                     .map(p => (
                       <div key={p.id} className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {p.full_name}
                           </p>
-                          <p className="text-xs text-gray-500">{p.clinic_name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{p.clinic_name}</p>
                         </div>
-                        <span className="text-xs font-bold text-red-600">
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400">
                           {trialDaysLeft(p.trial_ends_at)} days left
                         </span>
                       </div>
@@ -230,23 +230,23 @@ export default function Admin() {
             </div>
 
             {/* Recent Signups */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                 🆕 Recent Signups
               </h3>
               {physios.length === 0 ? (
-                <p className="text-sm text-gray-400">No physios signed up yet.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">No physios signed up yet.</p>
               ) : (
                 <div className="space-y-3">
                   {physios.slice(0, 5).map(p => (
                     <div key={p.id} className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {p.full_name}
                         </p>
-                        <p className="text-xs text-gray-500">{p.clinic_name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{p.clinic_name}</p>
                       </div>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
                         {formatDate(p.created_at)}
                       </span>
                     </div>
@@ -259,36 +259,36 @@ export default function Admin() {
 
         {/* Clinics Tab */}
         {activeTab === 'clinics' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {physios.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm">
+              <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
                 No clinics have signed up yet.
               </div>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left text-xs font-semibold text-gray-500 
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
                                    uppercase tracking-wider px-6 py-3">
                       Physio / Clinic
                     </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 
+                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
                                    uppercase tracking-wider px-6 py-3">
                       Patients
                     </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 
+                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
                                    uppercase tracking-wider px-6 py-3">
                       Joined
                     </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 
+                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
                                    uppercase tracking-wider px-6 py-3">
                       Trial Ends
                     </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 
+                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
                                    uppercase tracking-wider px-6 py-3">
                       Status
                     </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 
+                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
                                    uppercase tracking-wider px-6 py-3">
                       Action
                     </th>
@@ -297,28 +297,28 @@ export default function Admin() {
                 <tbody>
                   {physios.map((p) => (
                     <tr key={p.id}
-                      className="border-b border-gray-50 hover:bg-gray-50">
+                      className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 text-sm">
+                        <div className="font-medium text-gray-900 dark:text-white text-sm">
                           {p.full_name}
                         </div>
-                        <div className="text-xs text-gray-500">{p.clinic_name}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{p.clinic_name}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 dark:text-white">
                           {p.patientCount} total
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {p.activePatients} active
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {formatDate(p.created_at)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {p.trial_ends_at ? (
                           <span className={trialDaysLeft(p.trial_ends_at) <= 3 
-                            ? 'text-red-600 font-medium' : ''}>
+                            ? 'text-red-600 dark:text-red-400 font-medium' : ''}>
                             {formatDate(p.trial_ends_at)}
                             {p.subscription_status === 'trial' && (
                               <span className="block text-xs">
@@ -338,9 +338,9 @@ export default function Admin() {
                         <select
                           value={p.subscription_status}
                           onChange={(e) => updateSubscription(p.id, e.target.value)}
-                          className="text-xs border border-gray-300 rounded-lg 
-                                     px-2 py-1 bg-white focus:outline-none 
-                                     focus:ring-1 focus:ring-green-500"
+                           className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg 
+                                      px-2 py-1 bg-white dark:bg-gray-700 dark:text-white focus:outline-none 
+                                      focus:ring-1 focus:ring-green-500"
                         >
                           <option value="trial">Trial</option>
                           <option value="active">Active</option>

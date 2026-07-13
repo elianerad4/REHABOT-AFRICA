@@ -106,10 +106,10 @@ export default function PatientDetail() {
   }
 
   function getStatusColor(status) {
-    if (status === 'active') return 'bg-green-100 text-green-700'
-    if (status === 'paused') return 'bg-yellow-100 text-yellow-700'
-    if (status === 'discharged') return 'bg-gray-100 text-gray-500'
-    return 'bg-gray-100 text-gray-500'
+    if (status === 'active') return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+    if (status === 'paused') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
+    if (status === 'discharged') return 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+    return 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
   }
 
   function formatDate(dateStr) {
@@ -144,7 +144,7 @@ export default function PatientDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="w-10 h-10 border-4 border-green-600 border-t-transparent 
                         rounded-full animate-spin"></div>
       </div>
@@ -153,11 +153,11 @@ export default function PatientDetail() {
 
   if (!patient) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Patient not found.</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Patient not found.</p>
           <button onClick={() => navigate('/dashboard')}
-            className="text-green-600 font-medium">
+            className="text-green-600 dark:text-green-400 font-medium">
             Back to dashboard
           </button>
         </div>
@@ -166,30 +166,30 @@ export default function PatientDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 
                       flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             ← Back
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-green-100 rounded-full flex items-center 
+            <div className="w-9 h-9 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center 
                             justify-center">
-              <span className="text-green-700 font-bold">
+              <span className="text-green-700 dark:text-green-300 font-bold">
                 {patient.full_name.charAt(0)}
               </span>
             </div>
             <div>
-              <h1 className="font-bold text-gray-900 text-sm">
+              <h1 className="font-bold text-gray-900 dark:text-white text-sm">
                 {patient.full_name}
               </h1>
-              <p className="text-xs text-gray-500">{patient.diagnosis}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{patient.diagnosis}</p>
             </div>
           </div>
         </div>
@@ -218,9 +218,9 @@ export default function PatientDetail() {
             { label: 'Avg Pain Score', value: `${avgPain}/10` }
           ].map((stat) => (
             <div key={stat.label}
-              className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-xs text-gray-500 mb-1">{stat.label}</div>
-              <div className="font-bold text-gray-900 text-sm truncate">
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</div>
+              <div className="font-bold text-gray-900 dark:text-white text-sm truncate">
                 {stat.value}
               </div>
             </div>
@@ -228,7 +228,7 @@ export default function PatientDetail() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mb-6 w-fit">
           {['overview', 'messages', 'exercises'].map((tab) => (
             <button
               key={tab}
@@ -236,8 +236,8 @@ export default function PatientDetail() {
               className={`px-4 py-1.5 rounded-md text-sm font-medium 
                           transition-colors capitalize ${
                 activeTab === tab
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               {tab}
@@ -250,13 +250,13 @@ export default function PatientDetail() {
           <div className="space-y-6">
 
             {/* Pain Trend */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-1">Pain Trend</h3>
-              <p className="text-xs text-gray-500 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Pain Trend</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Patient-reported pain scores (1–10)
               </p>
               {painChartData.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
+                <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
                   No pain scores recorded yet.
                   <br />Pain scores appear when patient replies to check-ins.
                 </div>
@@ -280,15 +280,15 @@ export default function PatientDetail() {
             </div>
 
             {/* Adherence */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                 Exercise Adherence
               </h3>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Last 7 days — did patient confirm exercises?
               </p>
               {adherenceChartData.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
+                <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
                   No adherence data yet.
                   <br />Data appears after daily reminders are sent.
                 </div>
@@ -314,11 +314,11 @@ export default function PatientDetail() {
 
             {/* Notes */}
             {patient.notes && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="font-semibold text-gray-900 mb-2">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                   Clinical Notes
                 </h3>
-                <p className="text-sm text-gray-600">{patient.notes}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{patient.notes}</p>
               </div>
             )}
           </div>
@@ -326,47 +326,47 @@ export default function PatientDetail() {
 
         {/* Messages Tab */}
         {activeTab === 'messages' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {messages.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm">
+              <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
                 No messages yet.
                 <br />Messages appear after WhatsApp integration is active.
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 dark:divide-gray-700">
                 {messages.map((msg) => (
                   <div key={msg.id}
                     className={`px-6 py-4 flex gap-4 ${
-                      msg.direction === 'outbound' ? 'bg-white' : 'bg-green-50'
+                      msg.direction === 'outbound' ? 'bg-white dark:bg-gray-800' : 'bg-green-50 dark:bg-green-900/30'
                     }`}
                   >
                     <div className={`w-8 h-8 rounded-full flex items-center 
                                     justify-center text-xs font-bold flex-shrink-0 ${
                       msg.direction === 'outbound'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                     }`}>
                       {msg.direction === 'outbound' ? 'R' : 'P'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-gray-700">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                           {msg.direction === 'outbound' ? 'Rehabot' : patient.full_name}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           {new Date(msg.sent_at).toLocaleString('en-GB', {
                             day: 'numeric', month: 'short',
                             hour: '2-digit', minute: '2-digit'
                           })}
                         </span>
                         {msg.message_type && (
-                          <span className="text-xs bg-gray-100 text-gray-500 
+                          <span className="text-xs bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 
                                            px-2 py-0.5 rounded-full">
                             {msg.message_type}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                         {msg.content}
                       </p>
                     </div>
@@ -381,15 +381,15 @@ export default function PatientDetail() {
         {activeTab === 'exercises' && (
           <div className="space-y-6">
             {/* Currently assigned exercises */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                 Assigned Exercises
               </h3>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Exercises currently assigned to this patient
               </p>
               {patientExercises.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
+                <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
                   No exercises assigned yet.
                   <br />Select from the list below to assign.
                 </div>
@@ -398,12 +398,12 @@ export default function PatientDetail() {
                   {patientExercises.map((pe) => (
                     <div key={pe.id}
                       className="flex items-center justify-between p-3 
-                                 bg-gray-50 rounded-lg">
+                                 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 text-sm">
+                        <p className="font-medium text-gray-900 dark:text-white text-sm">
                           {pe.exercise?.name_en}
                         </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {pe.sets} sets × {pe.reps} reps · {pe.frequency_per_week}x/week
                           {pe.exercise?.description_en && (
                             <> — {pe.exercise.description_en}</>
@@ -413,8 +413,8 @@ export default function PatientDetail() {
                       <button
                         onClick={() => removePatientExercise(pe.id)}
                         disabled={exercisesLoading}
-                        className="text-red-500 hover:text-red-700 text-xs font-medium
-                                   px-3 py-1.5 rounded-lg hover:bg-red-50 
+                        className="text-red-500 dark:text-red-400 hover:text-red-700 text-xs font-medium
+                                   px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 
                                    transition-colors disabled:opacity-50"
                       >
                         Remove
@@ -426,26 +426,26 @@ export default function PatientDetail() {
             </div>
 
             {/* Available exercises */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                 Exercise Library
               </h3>
               <div className="flex items-center justify-between mb-4">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Global exercises — tap to assign to this patient
                 </p>
                 <button
                   onClick={() => setShowAddExercise(!showAddExercise)}
-                  className="text-green-600 hover:text-green-700 text-xs font-medium
-                             px-3 py-1.5 rounded-lg hover:bg-green-50 transition-colors"
+                  className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-xs font-medium
+                             px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
                 >
                   + New Exercise
                 </button>
               </div>
 
               {showAddExercise && (
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h4 className="font-medium text-gray-900 text-sm mb-3">
+                <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg">
+                  <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-3">
                     Add New Exercise
                   </h4>
                   <input
@@ -453,7 +453,7 @@ export default function PatientDetail() {
                     placeholder="Exercise name"
                     value={newExerciseName}
                     onChange={(e) => setNewExerciseName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm
                                mb-2 focus:outline-none focus:ring-1 focus:ring-green-500"
                   />
                   <textarea
@@ -461,7 +461,7 @@ export default function PatientDetail() {
                     value={newExerciseDescription}
                     onChange={(e) => setNewExerciseDescription(e.target.value)}
                     rows={2}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm
                                mb-3 focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
                   />
                   <div className="flex gap-2">
@@ -476,8 +476,8 @@ export default function PatientDetail() {
                     </button>
                     <button
                       onClick={() => { setShowAddExercise(false); setNewExerciseName(''); setNewExerciseDescription('') }}
-                      className="text-gray-500 hover:text-gray-700 text-xs font-medium
-                                 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-xs font-medium
+                                 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     >
                       Cancel
                     </button>
@@ -486,7 +486,7 @@ export default function PatientDetail() {
               )}
 
               {exercises.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
+                <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
                   No exercises found in the library.
                 </div>
               ) : (
@@ -496,17 +496,17 @@ export default function PatientDetail() {
                     .map((ex) => (
                       <div key={ex.id}
                         className="flex items-center justify-between p-3 
-                                   border border-gray-100 rounded-lg
-                                   hover:border-green-200 transition-colors">
+                                   border border-gray-100 dark:border-gray-700 rounded-lg
+                                   hover:border-green-200 dark:hover:border-green-700 transition-colors">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm">
+                          <p className="font-medium text-gray-900 dark:text-white text-sm">
                             {ex.name_en}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
                             {ex.name_sw}
                           </p>
                           {ex.description_en && (
-                            <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                               {ex.description_en}
                             </p>
                           )}
@@ -514,9 +514,9 @@ export default function PatientDetail() {
                         <button
                           onClick={() => assignExercise(ex.id)}
                           disabled={exercisesLoading}
-                          className="text-green-600 hover:text-green-700 text-xs 
+                          className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-xs 
                                      font-medium px-3 py-1.5 rounded-lg 
-                                     hover:bg-green-50 transition-colors 
+                                     hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors 
                                      disabled:opacity-50"
                         >
                           Assign
@@ -524,7 +524,7 @@ export default function PatientDetail() {
                       </div>
                     ))}
                   {exercises.filter(ex => !patientExercises.some(pe => pe.exercise_id === ex.id)).length === 0 && (
-                    <div className="text-center py-4 text-gray-400 text-sm">
+                    <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-sm">
                       All exercises are already assigned.
                     </div>
                   )}

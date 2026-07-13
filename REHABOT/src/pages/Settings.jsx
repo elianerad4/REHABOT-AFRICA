@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import Logo from '../components/ui/Logo'
 
 export default function Settings() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { darkMode, toggleDarkMode } = useTheme()
 
   const [form, setForm] = useState({
     full_name: '',
@@ -18,9 +20,6 @@ export default function Settings() {
   const [fetching, setFetching] = useState(true)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
-  const saved = localStorage.getItem('darkMode') === 'true'
-  const [darkMode, setDarkMode] = useState(saved)
-
   useEffect(() => {
     if (!user) return
     async function fetchProfile() {
@@ -68,18 +67,6 @@ export default function Settings() {
       setError(updateError.message)
     } else {
       setSuccess('Settings saved successfully!')
-    }
-  }
-
-  function handleDarkModeToggle() {
-    const next = !darkMode
-    setDarkMode(next)
-    if (next) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('darkMode', 'true')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('darkMode', 'false')
     }
   }
 
@@ -237,7 +224,7 @@ export default function Settings() {
               type="button"
               role="switch"
               aria-checked={darkMode}
-              onClick={handleDarkModeToggle}
+              onClick={toggleDarkMode}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors 
                           focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
                           dark:focus:ring-offset-gray-800 ${darkMode ? 'bg-green-600' : 'bg-gray-300'}`}

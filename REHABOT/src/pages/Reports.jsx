@@ -102,33 +102,33 @@ export default function Reports() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 
                       flex items-center gap-4">
         <button
           onClick={() => navigate('/dashboard')}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           ← Back
         </button>
-        <h1 className="font-bold text-gray-900">Weekly Reports</h1>
+        <h1 className="font-bold text-gray-900 dark:text-white">Weekly Reports</h1>
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-8">
 
         {/* Generator */}
-        <div className="bg-white rounded-xl border border-gray-200 p-8 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
             Generate Report
           </h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
             Select a patient and week to generate their rehabilitation report.
           </p>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 
                             rounded-lg px-4 py-3 text-sm mb-6">
               {error}
             </div>
@@ -136,15 +136,15 @@ export default function Reports() {
 
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Patient
               </label>
               <select
                 value={selectedPatient}
                 onChange={(e) => setSelectedPatient(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 
+                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
                            text-sm focus:outline-none focus:ring-2 
-                           focus:ring-green-500 bg-white"
+                           focus:ring-green-500"
               >
                 <option value="">Select a patient...</option>
                 {patients.map((p) => (
@@ -157,27 +157,27 @@ export default function Reports() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Week start
                 </label>
                 <input
                   type="date"
                   value={weekStart}
                   onChange={(e) => setWeekStart(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
                              text-sm focus:outline-none focus:ring-2 
                              focus:ring-green-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Week end
                 </label>
                 <input
                   type="date"
                   value={weekEnd}
                   onChange={(e) => setWeekEnd(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
                              text-sm focus:outline-none focus:ring-2 
                              focus:ring-green-500"
                 />
@@ -198,15 +198,15 @@ export default function Reports() {
 
         {/* Report Preview */}
         {reportHtml && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex 
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex 
                             items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Report Preview</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Report Preview</h3>
               <div className="flex gap-3">
                 <button
                   onClick={printReport}
-                  className="border border-gray-300 text-gray-700 
-                             hover:bg-gray-50 font-medium px-4 py-2 
+                  className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 
+                             hover:bg-gray-50 dark:hover:bg-gray-700 font-medium px-4 py-2 
                              rounded-lg text-sm transition-colors"
                 >
                   Print / Save PDF

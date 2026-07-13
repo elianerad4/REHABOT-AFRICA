@@ -100,6 +100,12 @@ export default function Dashboard() {
             Admin
           </button>
           <button
+            onClick={() => navigate('/settings')}
+            className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+          >
+            Settings
+          </button>
+          <button
             onClick={handleLogout}
             className="text-sm text-red-500 hover:text-red-700 font-medium"
           >

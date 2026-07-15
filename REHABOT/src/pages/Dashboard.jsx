@@ -93,12 +93,14 @@ export default function Dashboard() {
           <span className="text-sm text-gray-600 hidden sm:block dark:text-gray-300">
             {profile?.full_name ?? user?.email}
           </span>
-          <button
-            onClick={() => navigate('/admin')}
-            className="text-sm text-orange-600 font-medium hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
-          >
-            Admin
-          </button>
+          {profile?.is_admin && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="text-sm text-orange-600 font-medium hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+            >
+              Admin
+            </button>
+          )}
           <button
             onClick={() => navigate('/settings')}
             className="text-sm text-gray-500 hover:text-gray-700 font-medium dark:text-gray-400 dark:hover:text-gray-300"

@@ -164,14 +164,8 @@ function Navbar() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-transparent'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
-          <a href="#" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-9 h-9 bg-[#16a34a] rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-bold text-gray-900 -mb-0.5">Rehabot</div>
-              <div className="text-[10px] font-medium text-[#16a34a] tracking-wider uppercase">Africa</div>
-            </div>
+          <a href="#" className="flex-shrink-0">
+            <Logo />
           </a>
 
           <div className="hidden md:flex items-center gap-8">
@@ -518,36 +512,6 @@ function Pricing() {
   )
 }
 
-function Trust() {
-  return (
-    <section className="py-16 md:py-20 bg-white border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <FadeSection>
-          <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-8">Built on Trusted Technology</p>
-        </FadeSection>
-        <FadeSection>
-          <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16">
-            {[
-              { name: 'WhatsApp', color: '#25d366' },
-              { name: 'Claude AI', color: '#16a34a' },
-              { name: 'Supabase', color: '#3ecf8e' },
-              { name: 'Vercel', color: '#000' }
-            ].map((brand) => (
-              <div key={brand.name} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: brand.color }} />
-                <span className="text-sm font-semibold text-gray-700">{brand.name}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-gray-400 text-sm mt-8 max-w-2xl mx-auto">
-            Rehabot Africa is built on enterprise-grade infrastructure trusted by millions of businesses worldwide.
-          </p>
-        </FadeSection>
-      </div>
-    </section>
-  )
-}
-
 function FAQ() {
   const [openIndex, setOpenIndex] = useState(null)
 
@@ -617,15 +581,7 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-[#16a34a] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-              </div>
-              <div className="leading-tight">
-                <div className="text-sm font-bold text-white -mb-0.5">Rehabot</div>
-                <div className="text-[10px] font-medium text-[#16a34a] tracking-wider uppercase">Africa</div>
-              </div>
-            </div>
+<Logo />
             <p className="mt-4 text-sm leading-relaxed text-gray-400">
               Rehabot Africa is built by Darva Health, a health technology startup based in Dar es Salaam, Tanzania. Our mission is to make rehabilitation accessible to every patient regardless of location.
             </p>
@@ -689,7 +645,6 @@ export default function Landing() {
       <Features />
       <WhatsAppPreview />
       <Pricing />
-      <Trust />
       <FAQ />
       <FinalCTA />
       <Footer />

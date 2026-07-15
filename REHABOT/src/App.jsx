@@ -11,6 +11,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Landing from './pages/Landing'
 
 export default function App() {
   return (
@@ -53,7 +54,8 @@ export default function App() {
             }
           />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
           <Route path="/check-email" element={<CheckEmail />} />
           <Route
   path="/add-patient"

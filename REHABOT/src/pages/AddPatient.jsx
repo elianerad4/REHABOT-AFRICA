@@ -467,9 +467,9 @@ export default function AddPatient() {
                                  focus:ring-green-500 focus:border-transparent"
                     >
                       <option value="">Select</option>
-                      <option value="Morning 8am">Morning 8am</option>
-                      <option value="Afternoon 2pm">Afternoon 2pm</option>
-                      <option value="Evening 6pm">Evening 6pm</option>
+                      <option value="08:00:00">Morning 8am</option>
+                      <option value="14:00:00">Afternoon 2pm</option>
+                      <option value="18:00:00">Evening 6pm</option>
                     </select>
                   </div>
                 </div>

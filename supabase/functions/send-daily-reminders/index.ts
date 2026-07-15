@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     const { data: patients, error } = await supabase
       .from('patients')
       .select(`
-        id, full_name, phone_number, language, diagnosis,
+        id, full_name, phone_number, language, diagnosis, reminder_time,
         patient_exercises (
           sets, reps,
           exercises ( name_en, name_sw, video_url )
@@ -54,9 +54,20 @@ Deno.serve(async (req) => {
     console.log('Patients found:', JSON.stringify(patients))
     if (error) throw error
 
+    const nowUTC = new Date()
+    const eatHour = (nowUTC.getUTCHours() + 3) % 24
+
+    const patientsToNotify = (patients ?? []).filter((patient: any) => {
+      if (!patient.reminder_time) return eatHour === 8
+      const reminderHour = parseInt(patient.reminder_time.split(':')[0])
+      return reminderHour === eatHour
+    })
+
+    console.log('Patients to notify:', patientsToNotify.length)
+
     let sent = 0
 
-    for (const patient of patients ?? []) {
+    for (const patient of patientsToNotify) {
       const lang = patient.language
 
       const exerciseList = patient.patient_exercises
@@ -65,7 +76,7 @@ Deno.serve(async (req) => {
           const name = lang === 'sw'
             ? pe.exercises.name_sw
             : pe.exercises.name_en
-          return `• ${name} — ${pe.sets} sets x ${pe.reps} reps`
+          return `ï¿½ ${name} ï¿½ ${pe.sets} sets x ${pe.reps} reps`
         })
         .join('\n')
 

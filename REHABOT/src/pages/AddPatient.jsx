@@ -39,24 +39,38 @@ export default function AddPatient() {
 
   function buildNotes() {
     const parts = []
-    if (form.age) parts.push(`Age: ${form.age}`)
-    if (form.gender) parts.push(`Gender: ${form.gender}`)
-    if (form.emergency_name || form.emergency_phone) {
-      const e = [form.emergency_name, form.emergency_phone].filter(Boolean).join(' ')
-      parts.push(`Emergency Contact: ${e}`)
+    if (form.age || form.gender || form.emergency_name || form.emergency_phone) {
+      const info = []
+      if (form.age) info.push(`Age: ${form.age}`)
+      if (form.gender) info.push(`Gender: ${form.gender}`)
+      const emergency = [form.emergency_name, form.emergency_phone].filter(Boolean).join(' ')
+      if (emergency) info.push(`Emergency: ${emergency}`)
+      parts.push(info.join(' | '))
     }
-    if (form.medical_history) parts.push(`Medical History: ${form.medical_history}`)
-    if (form.medications) parts.push(`Medications: ${form.medications}`)
-    if (form.treatment_goals) parts.push(`Treatment Goals: ${form.treatment_goals}`)
-    if (form.sessions_per_week) parts.push(`Sessions/week: ${form.sessions_per_week}`)
-    if (form.expected_weeks) parts.push(`Expected Duration: ${form.expected_weeks} weeks`)
-    if (form.pain_score) parts.push(`Pain Score: ${form.pain_score}/10`)
-    if (form.mobility_status) parts.push(`Mobility: ${form.mobility_status}`)
-    if (form.referring_dr) parts.push(`Referring Doctor: ${form.referring_dr}`)
-    if (form.previous_physio) parts.push(`Previous Physio: ${form.previous_physio}`)
-    if (form.injury_date) parts.push(`Injury/Onset Date: ${form.injury_date}`)
-    if (form.reminder_time) parts.push(`Reminder Time: ${form.reminder_time}`)
-    return parts.join(' | ')
+    if (form.medical_history || form.medications) {
+      const clinical = []
+      if (form.medical_history) clinical.push(`Medical History: ${form.medical_history}`)
+      if (form.medications) clinical.push(`Medications: ${form.medications}`)
+      parts.push(clinical.join(' | '))
+    }
+    if (form.treatment_goals || form.sessions_per_week || form.expected_weeks) {
+      const rehab = []
+      if (form.treatment_goals) rehab.push(`Goals: ${form.treatment_goals}`)
+      if (form.sessions_per_week) rehab.push(`Sessions/week: ${form.sessions_per_week}`)
+      if (form.expected_weeks) rehab.push(`Duration: ${form.expected_weeks} weeks`)
+      parts.push(rehab.join(' | '))
+    }
+    if (form.pain_score || form.mobility_status || form.referring_dr) {
+      const status = []
+      if (form.pain_score) status.push(`Pain: ${form.pain_score}/10`)
+      if (form.mobility_status) status.push(`Mobility: ${form.mobility_status}`)
+      if (form.referring_dr) status.push(`Referring: ${form.referring_dr}`)
+      parts.push(status.join(' | '))
+    }
+    if (form.previous_physio) {
+      parts.push(`Previous PT: ${form.previous_physio}`)
+    }
+    return parts.join('\n')
   }
 
   async function handleSubmit(e) {
@@ -128,7 +142,7 @@ export default function AddPatient() {
             {/* Section 1 */}
             <div>
               <h2 className="text-base font-bold text-[#16a34a] dark:text-green-400 mb-1">
-                Personal Information
+                👤 Personal Information
               </h2>
               <div className="border-b border-gray-200 dark:border-gray-700 mb-5" />
 
@@ -193,7 +207,7 @@ export default function AddPatient() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Phone number (WhatsApp) <span className="text-red-500">*</span>
+                    Phone number WhatsApp <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
@@ -250,7 +264,7 @@ export default function AddPatient() {
             {/* Section 2 */}
             <div>
               <h2 className="text-base font-bold text-[#16a34a] dark:text-green-400 mb-1">
-                Clinical Information
+                🏥 Clinical Information
               </h2>
               <div className="border-b border-gray-200 dark:border-gray-700 mb-5" />
 
@@ -290,7 +304,7 @@ export default function AddPatient() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Referring doctor / hospital
+                      Referring doctor or hospital
                     </label>
                     <input
                       type="text"
@@ -307,7 +321,7 @@ export default function AddPatient() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Previous physiotherapy history
+                    Previous physiotherapy
                   </label>
                   <select
                     name="previous_physio"
@@ -325,7 +339,7 @@ export default function AddPatient() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Relevant medical history
+                    Medical history
                   </label>
                   <textarea
                     name="medical_history"
@@ -360,7 +374,7 @@ export default function AddPatient() {
             {/* Section 3 */}
             <div>
               <h2 className="text-base font-bold text-[#16a34a] dark:text-green-400 mb-1">
-                Rehabilitation Plan
+                🎯 Rehabilitation Plan
               </h2>
               <div className="border-b border-gray-200 dark:border-gray-700 mb-5" />
 
@@ -406,7 +420,7 @@ export default function AddPatient() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Expected duration (weeks)
+                      Expected duration in weeks
                     </label>
                     <input
                       type="number"
@@ -425,7 +439,7 @@ export default function AddPatient() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Preferred language for WhatsApp <span className="text-red-500">*</span>
+                      Preferred language <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="language"
@@ -442,7 +456,7 @@ export default function AddPatient() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Reminder time preference
+                      Reminder time
                     </label>
                     <select
                       name="reminder_time"
@@ -465,7 +479,7 @@ export default function AddPatient() {
             {/* Section 4 */}
             <div>
               <h2 className="text-base font-bold text-[#16a34a] dark:text-green-400 mb-1">
-                Current Status
+                📊 Current Status
               </h2>
               <div className="border-b border-gray-200 dark:border-gray-700 mb-5" />
 
@@ -514,7 +528,7 @@ export default function AddPatient() {
             {/* Section 5 */}
             <div>
               <h2 className="text-base font-bold text-[#16a34a] dark:text-green-400 mb-1">
-                Consent
+                ✅ Consent
               </h2>
               <div className="border-b border-gray-200 dark:border-gray-700 mb-5" />
 
@@ -529,7 +543,7 @@ export default function AddPatient() {
                                rounded focus:ring-green-500"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Patient consents to receive WhatsApp rehabilitation messages <span className="text-red-500">*</span>
+                    Patient consents to receive WhatsApp messages <span className="text-red-500">*</span>
                   </span>
                 </label>
 

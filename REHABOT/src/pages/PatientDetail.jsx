@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useTheme } from '../context/ThemeContext'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
@@ -9,6 +10,7 @@ import {
 export default function PatientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { darkMode, toggleDarkMode } = useTheme()
   const [patient, setPatient] = useState(null)
   const [painLogs, setPainLogs] = useState([])
   const [adherenceLogs, setAdherenceLogs] = useState([])
@@ -194,7 +196,11 @@ export default function PatientDetail() {
           </div>
         </div>
 
-        {/* Status selector */}
+        <div className="flex items-center gap-3">
+          <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+          {/* Status selector */}
         <select
           value={patient.status}
           onChange={(e) => updateStatus(e.target.value)}
@@ -205,6 +211,7 @@ export default function PatientDetail() {
           <option value="paused">Paused</option>
           <option value="discharged">Discharged</option>
         </select>
+        </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">

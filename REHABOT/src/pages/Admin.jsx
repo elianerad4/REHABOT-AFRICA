@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import Logo from '../components/ui/Logo'
 
 export default function Admin() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { darkMode, toggleDarkMode } = useTheme()
   const [loading, setLoading] = useState(true)
   const [authorized, setAuthorized] = useState(false)
   const [stats, setStats] = useState({
@@ -136,12 +138,17 @@ export default function Admin() {
             ADMIN
           </span>
         </div>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          ← Back to Dashboard
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">

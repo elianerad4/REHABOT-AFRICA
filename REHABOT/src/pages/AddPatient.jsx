@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function AddPatient() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { darkMode, toggleDarkMode } = useTheme()
   const [form, setForm] = useState({
     full_name: '',
     age: '',
@@ -124,7 +126,10 @@ export default function AddPatient() {
         >
           ← Back
         </button>
-        <h1 className="font-bold text-gray-900 dark:text-white">Add New Patient</h1>
+        <h1 className="font-bold text-gray-900 dark:text-white flex-1">Add New Patient</h1>
+        <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
+          {darkMode ? '☀️' : '🌙'}
+        </button>
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-8">

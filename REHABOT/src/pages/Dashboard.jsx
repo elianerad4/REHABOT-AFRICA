@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import Logo from '../components/ui/Logo'
 
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { darkMode, toggleDarkMode } = useTheme()
   const [profile, setProfile] = useState(null)
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(true)
@@ -93,6 +95,9 @@ export default function Dashboard() {
           <span className="text-sm text-gray-600 hidden sm:block dark:text-gray-300">
             {profile?.full_name ?? user?.email}
           </span>
+          <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
+            {darkMode ? '☀️' : '🌙'}
+          </button>
           {profile?.is_admin && (
             <button
               onClick={() => navigate('/admin')}

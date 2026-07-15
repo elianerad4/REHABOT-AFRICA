@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { getGreeting } from '../utils/getGreeting'
 import Logo from '../components/ui/Logo'
 
 export default function Dashboard() {
@@ -126,7 +127,7 @@ export default function Dashboard() {
         {/* Welcome */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Good morning, {profile?.full_name?.split(' ')[0] ?? 'Doctor'} 👋
+            {getGreeting()}, {profile?.full_name?.split(' ')[0] ?? 'Doctor'} 👋
           </h2>
           <p className="text-gray-500 text-sm mt-1 dark:text-gray-400">
             Here is your patient overview for today.

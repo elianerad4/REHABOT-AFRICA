@@ -22,7 +22,7 @@ export default function Settings() {
     async function fetchProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('*')
+        .select('full_name, clinic_name, phone_number, language')
         .eq('id', user.id)
         .single()
       if (data) {
@@ -50,13 +50,13 @@ export default function Settings() {
 
     const { error: updateError } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
+      .update({
         full_name: form.full_name.trim(),
         clinic_name: form.clinic_name.trim(),
         phone_number: form.phone_number.trim(),
         language: form.language
       })
+      .eq('id', user.id)
 
     setLoading(false)
 

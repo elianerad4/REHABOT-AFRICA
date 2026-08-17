@@ -38,8 +38,14 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    console.log('Fetching active patients...')
+    // Get current hour and minute in EAT (UTC+3)
+    const nowUTC = new Date()
+    const eatHour = (nowUTC.getUTCHours() + 3) % 24
+    const eatMinute = nowUTC.getUTCMinutes()
 
+    console.log(`Current EAT time: ${eatHour}:${String(eatMinute).padStart(2, '0')}`)
+
+    // Fetch all active patients
     const { data: patients, error } = await supabase
       .from('patients')
       .select(`
@@ -51,19 +57,23 @@ Deno.serve(async (req) => {
       `)
       .eq('status', 'active')
 
-    console.log('Patients found:', JSON.stringify(patients))
     if (error) throw error
 
-    const nowUTC = new Date()
-    const eatHour = (nowUTC.getUTCHours() + 3) % 24
+    console.log(`Total active patients: ${patients?.length ?? 0}`)
 
+    // Filter patients whose reminder_time matches current EAT hour
     const patientsToNotify = (patients ?? []).filter((patient: any) => {
-      if (!patient.reminder_time) return eatHour === 8
+      if (!patient.reminder_time) {
+        // Default to 8am if no reminder time set
+        return eatHour === 8
+      }
       const reminderHour = parseInt(patient.reminder_time.split(':')[0])
-      return reminderHour === eatHour
+      const matches = reminderHour === eatHour
+      console.log(`Patient ${patient.full_name}: reminder=${patient.reminder_time}, currentHour=${eatHour}, matches=${matches}`)
+      return matches
     })
 
-    console.log('Patients to notify:', patientsToNotify.length)
+    console.log(`Patients to notify this hour: ${patientsToNotify.length}`)
 
     let sent = 0
 
@@ -76,18 +86,24 @@ Deno.serve(async (req) => {
           const name = lang === 'sw'
             ? pe.exercises.name_sw
             : pe.exercises.name_en
-          return `� ${name} � ${pe.sets} sets x ${pe.reps} reps`
+          return `• ${name} — ${pe.sets} sets x ${pe.reps} reps`
         })
         .join('\n')
 
       const hasExercises = exerciseList.length > 0
 
       const message = lang === 'sw'
-        ? `Habari ${patient.full_name}! ??\n\n${hasExercises ? `Mazoezi yako ya leo:\n${exerciseList}\n\n` : ''}Jibu NDIYO ukimaliza mazoezi yako.`
-        : `Good morning ${patient.full_name}! ??\n\n${hasExercises ? `Your exercises for today:\n${exerciseList}\n\n` : ''}Reply YES when you finish your exercises.`
+        ? `Habari ${patient.full_name}! 💪\n\n${hasExercises
+            ? `Mazoezi yako ya leo:\n${exerciseList}\n\n`
+            : ''}Jibu NDIYO ukimaliza mazoezi yako.`
+        : `Good morning ${patient.full_name}! 💪\n\n${hasExercises
+            ? `Your exercises for today:\n${exerciseList}\n\n`
+            : ''}Reply YES when you finish your exercises.`
 
-      console.log('Sending to:', patient.phone_number)
-      await sendWhatsApp(patient.phone_number, message)
+      console.log(`Sending to ${patient.full_name} at ${patient.phone_number}`)
+
+      const result = await sendWhatsApp(patient.phone_number, message)
+      console.log(`Send result for ${patient.full_name}:`, JSON.stringify(result))
 
       await supabase.from('message_logs').insert({
         patient_id: patient.id,
@@ -96,20 +112,34 @@ Deno.serve(async (req) => {
         content: message
       })
 
-      await supabase.from('adherence_logs').insert({
-        patient_id: patient.id,
-        log_date: new Date().toISOString().split('T')[0],
-        reply_received: false,
-        confirmed: false
-      })
+      // Insert adherence log — ignore if already exists for today
+      const today = new Date().toISOString().split('T')[0]
+      const { error: adherenceError } = await supabase
+        .from('adherence_logs')
+        .insert({
+          patient_id: patient.id,
+          log_date: today,
+          reply_received: false,
+          confirmed: false
+        })
+
+      if (adherenceError) {
+        console.log(`Adherence log already exists for ${patient.full_name} today — skipping`)
+      }
 
       sent++
     }
 
-    console.log('Total sent:', sent)
+    console.log(`Total messages sent: ${sent}`)
 
     return new Response(
-      JSON.stringify({ success: true, sent }),
+      JSON.stringify({ 
+        success: true, 
+        sent,
+        current_eat_time: `${eatHour}:${String(eatMinute).padStart(2, '0')}`,
+        total_active_patients: patients?.length ?? 0,
+        patients_notified: sent
+      }),
       { headers: { 'Content-Type': 'application/json' } }
     )
 

@@ -104,6 +104,7 @@ export default function AddPatient() {
         diagnosis: form.diagnosis.trim(),
         language: form.language,
         notes,
+        reminder_time: form.reminder_time || null,
         status: 'active'
       })
 
@@ -472,9 +473,30 @@ export default function AddPatient() {
                                  focus:ring-green-500 focus:border-transparent"
                     >
                       <option value="">Select</option>
-                      <option value="08:00:00">Morning 8am</option>
-                      <option value="14:00:00">Afternoon 2pm</option>
-                      <option value="18:00:00">Evening 6pm</option>
+                      <option value="00:00:00">12am</option>
+                      <option value="01:00:00">1am</option>
+                      <option value="02:00:00">2am</option>
+                      <option value="03:00:00">3am</option>
+                      <option value="04:00:00">4am</option>
+                      <option value="05:00:00">5am</option>
+                      <option value="06:00:00">6am</option>
+                      <option value="07:00:00">7am</option>
+                      <option value="08:00:00">8am</option>
+                      <option value="09:00:00">9am</option>
+                      <option value="10:00:00">10am</option>
+                      <option value="11:00:00">11am</option>
+                      <option value="12:00:00">12pm</option>
+                      <option value="13:00:00">1pm</option>
+                      <option value="14:00:00">2pm</option>
+                      <option value="15:00:00">3pm</option>
+                      <option value="16:00:00">4pm</option>
+                      <option value="17:00:00">5pm</option>
+                      <option value="18:00:00">6pm</option>
+                      <option value="19:00:00">7pm</option>
+                      <option value="20:00:00">8pm</option>
+                      <option value="21:00:00">9pm</option>
+                      <option value="22:00:00">10pm</option>
+                      <option value="23:00:00">11pm</option>
                     </select>
                   </div>
                 </div>

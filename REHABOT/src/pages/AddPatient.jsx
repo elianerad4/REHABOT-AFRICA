@@ -101,6 +101,10 @@ export default function AddPatient() {
 
     const notes = buildNotes()
 
+    const reminderTime = form.reminder_time
+      ? form.reminder_time.length === 5 ? `${form.reminder_time}:00` : form.reminder_time
+      : null
+
     const { error: insertError } = await supabase
       .from('patients')
       .insert({
@@ -111,7 +115,7 @@ export default function AddPatient() {
         diagnosis: form.diagnosis.trim(),
         language: form.language,
         notes,
-        reminder_time: form.reminder_time || null,
+        reminder_time: reminderTime,
         status: 'active'
       })
 
@@ -471,40 +475,18 @@ export default function AddPatient() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Reminder time
                     </label>
-                    <select
+                    <input
+                      type="time"
                       name="reminder_time"
                       value={form.reminder_time}
                       onChange={handleChange}
                       className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
                                  text-sm focus:outline-none focus:ring-2 
                                  focus:ring-green-500 focus:border-transparent"
-                    >
-                      <option value="">Select</option>
-                      <option value="00:00:00">12am</option>
-                      <option value="01:00:00">1am</option>
-                      <option value="02:00:00">2am</option>
-                      <option value="03:00:00">3am</option>
-                      <option value="04:00:00">4am</option>
-                      <option value="05:00:00">5am</option>
-                      <option value="06:00:00">6am</option>
-                      <option value="07:00:00">7am</option>
-                      <option value="08:00:00">8am</option>
-                      <option value="09:00:00">9am</option>
-                      <option value="10:00:00">10am</option>
-                      <option value="11:00:00">11am</option>
-                      <option value="12:00:00">12pm</option>
-                      <option value="13:00:00">1pm</option>
-                      <option value="14:00:00">2pm</option>
-                      <option value="15:00:00">3pm</option>
-                      <option value="16:00:00">4pm</option>
-                      <option value="17:00:00">5pm</option>
-                      <option value="18:00:00">6pm</option>
-                      <option value="19:00:00">7pm</option>
-                      <option value="20:00:00">8pm</option>
-                      <option value="21:00:00">9pm</option>
-                      <option value="22:00:00">10pm</option>
-                      <option value="23:00:00">11pm</option>
-                    </select>
+                    />
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      Pick any time — the patient will be messaged at this time daily.
+                    </p>
                   </div>
                 </div>
               </div>

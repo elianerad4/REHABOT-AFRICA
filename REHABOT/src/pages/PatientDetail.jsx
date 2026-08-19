@@ -22,6 +22,7 @@ export default function PatientDetail() {
   const [showAddExercise, setShowAddExercise] = useState(false)
   const [newExerciseName, setNewExerciseName] = useState('')
   const [newExerciseDescription, setNewExerciseDescription] = useState('')
+  const [reminderTime, setReminderTime] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
 
   async function fetchAll() {
@@ -51,6 +52,7 @@ export default function PatientDetail() {
     setMessages(messageData ?? [])
     setExercises(exerciseData ?? [])
     setPatientExercises(patientExerciseData ?? [])
+    setReminderTime(patientData?.reminder_time?.slice(0, 5) ?? '')
     setLoading(false)
   }
 
@@ -105,6 +107,18 @@ export default function PatientDetail() {
       .update({ status: newStatus })
       .eq('id', id)
     setPatient({ ...patient, status: newStatus })
+  }
+
+  async function updateReminderTime(e) {
+    const value = e.target.value
+    setReminderTime(value)
+    if (!value) return
+    const time = value.length === 5 ? `${value}:00` : value
+    await supabase
+      .from('patients')
+      .update({ reminder_time: time })
+      .eq('id', id)
+    setPatient({ ...patient, reminder_time: time })
   }
 
   function getStatusColor(status) {
@@ -200,6 +214,16 @@ export default function PatientDetail() {
           <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
             {darkMode ? '☀️' : '🌙'}
           </button>
+          {/* Reminder time editor */}
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            Reminder:
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={updateReminderTime}
+              className="text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-500"
+            />
+          </label>
           {/* Status selector */}
         <select
           value={patient.status}

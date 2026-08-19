@@ -38,10 +38,11 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Get current hour and minute in EAT (UTC+3)
+    // Get current time in EAT (UTC+3)
     const nowUTC = new Date()
     const eatHour = (nowUTC.getUTCHours() + 3) % 24
     const eatMinute = nowUTC.getUTCMinutes()
+    const currentMinutesOfDay = eatHour * 60 + eatMinute
 
     console.log(`Current EAT time: ${eatHour}:${String(eatMinute).padStart(2, '0')}`)
 
@@ -62,15 +63,22 @@ Deno.serve(async (req) => {
 
     console.log(`Total active patients: ${patients?.length ?? 0}`)
 
-    // Filter patients whose reminder_time matches current EAT hour
+    // Filter patients whose reminder_time falls in the current 5-minute window.
+    // The cron runs every 5 minutes, so each patient is picked up once, at the
+    // first run at/after their exact reminder time (minutes included).
+    const today = new Date().toISOString().split('T')[0]
     const patientsToNotify = (patients ?? []).filter((patient: any) => {
       if (!patient.reminder_time) {
         // Default to 8am if no reminder time set
-        return eatHour === 8
+        return eatHour === 8 && eatMinute < 5
       }
-      const reminderHour = parseInt(patient.reminder_time.split(':')[0])
-      const matches = reminderHour === eatHour
-      console.log(`Patient ${patient.full_name}: reminder=${patient.reminder_time}, currentHour=${eatHour}, matches=${matches}`)
+      const [h, m] = patient.reminder_time.split(':').map((n: string) => parseInt(n))
+      const reminderMinutesOfDay = (h || 0) * 60 + (m || 0)
+      const matches = reminderMinutesOfDay > currentMinutesOfDay - 5
+        && reminderMinutesOfDay <= currentMinutesOfDay
+      console.log(
+        `Patient ${patient.full_name}: reminder=${patient.reminder_time}, now=${eatHour}:${String(eatMinute).padStart(2, '0')}, matches=${matches}`
+      )
       return matches
     })
 
@@ -80,6 +88,19 @@ Deno.serve(async (req) => {
 
     for (const patient of patientsToNotify) {
       const lang = patient.language
+
+      // Once-per-day guard: skip if this patient already received a reminder today
+      const { data: existingLog } = await supabase
+        .from('adherence_logs')
+        .select('id')
+        .eq('patient_id', patient.id)
+        .eq('log_date', today)
+        .maybeSingle()
+
+      if (existingLog) {
+        console.log(`Already reminded ${patient.full_name} today — skipping`)
+        continue
+      }
 
       const exerciseList = patient.patient_exercises
         .filter((pe: any) => pe.exercises)
@@ -115,7 +136,6 @@ Deno.serve(async (req) => {
       })
 
       // Insert adherence log — ignore if already exists for today
-      const today = new Date().toISOString().split('T')[0]
       const { error: adherenceError } = await supabase
         .from('adherence_logs')
         .insert({

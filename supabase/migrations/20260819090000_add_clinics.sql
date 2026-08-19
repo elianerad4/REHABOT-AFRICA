@@ -103,3 +103,47 @@ begin
   return new;
 end;
 $$;
+
+-- Admin access helper (SECURITY DEFINER to avoid RLS recursion).
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select is_admin from public.profiles where id = auth.uid()), false)
+$$;
+
+grant execute on function public.is_admin() to authenticated;
+grant execute on function public.is_admin() to anon;
+
+-- Admin policies so the admin panel can see all physios/patients/messages.
+drop policy if exists "admin_profiles_select" on public.profiles;
+create policy "admin_profiles_select" on public.profiles
+  for select
+  using (public.is_admin());
+
+drop policy if exists "admin_profiles_update" on public.profiles;
+create policy "admin_profiles_update" on public.profiles
+  for update
+  using (public.is_admin());
+
+drop policy if exists "admin_patients_select" on public.patients;
+create policy "admin_patients_select" on public.patients
+  for select
+  using (public.is_admin());
+
+drop policy if exists "admin_message_logs_select" on public.message_logs;
+create policy "admin_message_logs_select" on public.message_logs
+  for select
+  using (public.is_admin());
+
+-- Clinic select also uses the helper for admins (avoid recursion).
+drop policy if exists "clinic_select_own" on public.clinics;
+create policy "clinic_select_own" on public.clinics
+  for select
+  using (
+    id in (select clinic_id from public.profiles where id = auth.uid())
+    or public.is_admin()
+  );

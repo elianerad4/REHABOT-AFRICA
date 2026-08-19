@@ -99,11 +99,15 @@ Deno.serve(async (req) => {
     console.log('From:', from, 'Message:', messageBody)
     if (!from || !messageBody) return okResponse
 
-    const { data: patient } = await supabase
+    const { data: patientRows } = await supabase
       .from('patients')
       .select('id, full_name, language, diagnosis')
       .eq('phone_number', from)
-      .single()
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const patient = patientRows?.[0]
 
     if (!patient) {
       console.log('Patient not found:', from)

@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
       .from('patients')
       .select(`
         id, full_name, phone_number, language, diagnosis, reminder_time,
+        clinics ( name ),
         patient_exercises (
           sets, reps,
           exercises ( name_en, name_sw, video_url )
@@ -91,14 +92,15 @@ Deno.serve(async (req) => {
         .join('\n')
 
       const hasExercises = exerciseList.length > 0
+      const clinicName = patient.clinics?.name ?? 'Rehabot Africa'
 
       const message = lang === 'sw'
         ? `Habari ${patient.full_name}! 💪\n\n${hasExercises
-            ? `Mazoezi yako ya leo:\n${exerciseList}\n\n`
-            : ''}Jibu NDIYO ukimaliza mazoezi yako.`
+            ? `Mazoezi yako ya leo (${clinicName}):\n${exerciseList}\n\n`
+            : `Hii ni ujumbe kutoka ${clinicName}.\n\n`}Jibu NDIYO ukimaliza mazoezi yako.`
         : `Good morning ${patient.full_name}! 💪\n\n${hasExercises
-            ? `Your exercises for today:\n${exerciseList}\n\n`
-            : ''}Reply YES when you finish your exercises.`
+            ? `Your exercises for today (${clinicName}):\n${exerciseList}\n\n`
+            : `This is a message from ${clinicName}.\n\n`}Reply YES when you finish your exercises.`
 
       console.log(`Sending to ${patient.full_name} at ${patient.phone_number}`)
 

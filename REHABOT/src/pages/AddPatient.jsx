@@ -93,12 +93,19 @@ export default function AddPatient() {
       phone = '+' + phone
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('clinic_id')
+      .eq('id', user.id)
+      .single()
+
     const notes = buildNotes()
 
     const { error: insertError } = await supabase
       .from('patients')
       .insert({
         physio_id: user.id,
+        clinic_id: profile?.clinic_id ?? null,
         full_name: form.full_name.trim(),
         phone_number: phone,
         diagnosis: form.diagnosis.trim(),

@@ -17,12 +17,13 @@ export default function Settings() {
   const [fetching, setFetching] = useState(true)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [clinicId, setClinicId] = useState(null)
   useEffect(() => {
     if (!user) return
     async function fetchProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, clinic_name, phone_number, language')
+        .select('full_name, clinic_name, clinic_id, phone_number, language')
         .eq('id', user.id)
         .single()
       if (data) {
@@ -32,6 +33,7 @@ export default function Settings() {
           phone_number: data.phone_number ?? '',
           language: data.language ?? 'en'
         })
+        setClinicId(data.clinic_id ?? null)
       }
       setFetching(false)
     }
@@ -48,20 +50,30 @@ export default function Settings() {
     setSuccess('')
     setLoading(true)
 
+    const clinicName = form.clinic_name.trim()
+
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         full_name: form.full_name.trim(),
-        clinic_name: form.clinic_name.trim(),
+        clinic_name: clinicName,
         phone_number: form.phone_number.trim(),
         language: form.language
       })
       .eq('id', user.id)
 
+    let clinicError = null
+    if (clinicId) {
+      ;({ error: clinicError } = await supabase
+        .from('clinics')
+        .update({ name: clinicName })
+        .eq('id', clinicId))
+    }
+
     setLoading(false)
 
-    if (updateError) {
-      setError(updateError.message)
+    if (updateError || clinicError) {
+      setError(updateError?.message ?? clinicError?.message)
     } else {
       setSuccess('Settings saved successfully!')
     }

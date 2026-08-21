@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkSafety } from '../_shared/stroke.js'
 
 async function sendWhatsApp(to: string, message: string) {
   const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')!
@@ -24,6 +25,11 @@ async function sendWhatsApp(to: string, message: string) {
   )
   const result = await response.json()
   console.log('Meta API response:', JSON.stringify(result))
+  if (!response.ok || result.error) {
+    throw new Error(
+      `Meta text error: ${result.error?.message ?? `HTTP ${response.status}`}`
+    )
+  }
   return result
 }
 
@@ -115,7 +121,7 @@ Deno.serve(async (req) => {
     }
 
     const lang = patient.language
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
 
     await supabase.from('message_logs').insert({
       patient_id: patient.id,
@@ -124,16 +130,89 @@ Deno.serve(async (req) => {
       content: messageBody
     })
 
-    const painScore = parseInt(messageBody)
-    if (!isNaN(painScore) && painScore >= 1 && painScore <= 10) {
+    // 1. Safety flags — concerning responses are flagged, never diagnosed.
+    const safety = checkSafety(messageBody, lang)
+    if (safety) {
+      await supabase.from('clinician_flags').insert({
+        patient_id: patient.id,
+        flag_type: 'concerning_response',
+        severity: safety.severity,
+        details: safety.details,
+        source: 'system'
+      })
+      await sendWhatsApp(from, safety.reply)
+      await supabase.from('message_logs').insert({
+        patient_id: patient.id, direction: 'outbound',
+        message_type: 'safety_flag', content: safety.reply
+      })
+      return okResponse
+    }
+
+    const lowered = messageBody.toLowerCase()
+    const trimmed = messageBody.trim()
+    const isNumber = /^\d{1,2}$/.test(trimmed)
+    const numeric = parseInt(trimmed)
+
+    // 2. Programme completion context for today
+    const { data: completionLogs } = await supabase
+      .from('exercise_completion_logs')
+      .select('id, status, difficulty_rating')
+      .eq('patient_id', patient.id)
+      .eq('log_date', today)
+      .limit(100)
+
+    const pendingCompletions = (completionLogs ?? []).filter(l => l.status === 'pending')
+    const awaitingDifficulty = (completionLogs ?? []).filter(l => l.status === 'completed' && l.difficulty_rating == null)
+
+    const doneWords = ['done', 'complete', 'completed', 'finished', 'nimefanya', 'nimemaliza']
+
+    // 3. DONE → mark today's programme exercises as completed, ask for difficulty
+    if (pendingCompletions.length > 0 && doneWords.includes(lowered)) {
+      const now = new Date().toISOString()
+      await supabase.from('exercise_completion_logs')
+        .update({ status: 'completed', completed_at: now, patient_response: messageBody })
+        .eq('patient_id', patient.id)
+        .eq('log_date', today)
+        .eq('status', 'pending')
+      const reply = lang === 'sw'
+        ? `Hongera! Umemaliza mazoezi ya leo. Ulikuwa mgumu kiasi gani? (1 - Rahisi sana, 5 - Mgumu sana)`
+        : `Well done! You completed today's programme. How difficult was it? (1 = very easy, 5 = very difficult)`
+      await sendWhatsApp(from, reply)
+      await supabase.from('message_logs').insert({
+        patient_id: patient.id, direction: 'outbound',
+        message_type: 'difficulty_prompt', content: reply
+      })
+      return okResponse
+    }
+
+    // 4. Difficulty rating (1-5) after completion
+    if (awaitingDifficulty.length > 0 && isNumber && numeric >= 1 && numeric <= 5) {
+      await supabase.from('exercise_completion_logs')
+        .update({ difficulty_rating: numeric, patient_response: messageBody })
+        .eq('patient_id', patient.id)
+        .eq('log_date', today)
+        .eq('status', 'completed')
+      const reply = lang === 'sw'
+        ? `Asante! Tumerekodi kiwango cha ugumu: ${numeric}/5. Daktari wako ataona.`
+        : `Thank you! We recorded your difficulty rating: ${numeric}/5. Your physio will review this.`
+      await sendWhatsApp(from, reply)
+      await supabase.from('message_logs').insert({
+        patient_id: patient.id, direction: 'outbound',
+        message_type: 'difficulty_rating', content: reply
+      })
+      return okResponse
+    }
+
+    // 5. Pain score (1-10)
+    if (isNumber && numeric >= 1 && numeric <= 10) {
       await supabase.from('pain_logs').insert({
         patient_id: patient.id,
-        score: painScore,
+        score: numeric,
         raw_reply: messageBody
       })
       const reply = lang === 'sw'
-        ? `Asante! Tumesajili maumivu yako: ${painScore}/10. Daktari wako ataona hii.`
-        : `Thank you! We recorded your pain score: ${painScore}/10. Your physio will review this.`
+        ? `Asante! Tumesajili maumivu yako: ${numeric}/10. Daktari wako ataona hii.`
+        : `Thank you! We recorded your pain score: ${numeric}/10. Your physio will review this.`
       await sendWhatsApp(from, reply)
       await supabase.from('message_logs').insert({
         patient_id: patient.id, direction: 'outbound',
@@ -143,7 +222,7 @@ Deno.serve(async (req) => {
     }
 
     const yesReplies = ['yes', 'ndiyo', 'ndio', 'done', 'nimefanya', 'yeah', 'yep', 'ok', 'okay']
-    if (yesReplies.includes(messageBody.toLowerCase())) {
+    if (yesReplies.includes(lowered)) {
       await supabase.from('adherence_logs')
         .update({ confirmed: true, reply_received: true, reply_text: messageBody })
         .eq('patient_id', patient.id)

@@ -4,6 +4,9 @@ import PatientDetail from './pages/PatientDetail'
 import AddPatient from './pages/AddPatient'
 import CheckEmail from './pages/CheckEmail'
 import Settings from './pages/Settings'
+import ExerciseLibrary from './pages/ExerciseLibrary'
+import ProgrammeBuilder from './pages/ProgrammeBuilder'
+import RehabDashboard from './pages/RehabDashboard'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -43,6 +46,30 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+          <Route
+            path="/patient/:id/programme"
+            element={
+              <ProtectedRoute>
+                <ProgrammeBuilder />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/:id/rehab"
+            element={
+              <ProtectedRoute>
+                <RehabDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/library"
+            element={
+              <ProtectedRoute>
+                <ExerciseLibrary />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route

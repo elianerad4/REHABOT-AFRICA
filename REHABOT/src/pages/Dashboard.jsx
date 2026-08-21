@@ -157,6 +157,13 @@ export default function Dashboard() {
           <h3 className="font-semibold text-gray-900 dark:text-white">Your Patients</h3>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => navigate('/library')}
+              className="border border-gray-300 text-gray-700 hover:bg-gray-50 
+                         text-sm font-medium px-4 py-2 rounded-lg transition-colors dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Exercise Library
+            </button>
+            <button
               onClick={() => navigate('/reports')}
               className="border border-gray-300 text-gray-700 hover:bg-gray-50 
                          text-sm font-medium px-4 py-2 rounded-lg transition-colors dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"

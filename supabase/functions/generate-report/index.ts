@@ -57,6 +57,40 @@ Deno.serve(async (req) => {
       .lte('log_date', week_end)
       .order('log_date', { ascending: true })
 
+    // Fetch active rehabilitation programme and its exercises
+    const { data: programme } = await supabase
+      .from('rehabilitation_programmes')
+      .select(`
+        id, name, goal, start_date, end_date, status, clinician_notes,
+        programme_exercises (
+          id, sets, repetitions, duration_seconds, frequency, laterality,
+          exercises ( name_en )
+        )
+      `)
+      .eq('patient_id', patient_id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    // Fetch exercise completion logs for the week
+    const { data: completionLogs } = await supabase
+      .from('exercise_completion_logs')
+      .select('log_date, status, difficulty_rating, completed_at')
+      .eq('patient_id', patient_id)
+      .gte('log_date', week_start)
+      .lte('log_date', week_end)
+      .order('log_date', { ascending: true })
+
+    // Fetch clinician flags for the week
+    const { data: flags } = await supabase
+      .from('clinician_flags')
+      .select('created_at, flag_type, severity, details, status')
+      .eq('patient_id', patient_id)
+      .gte('created_at', week_start)
+      .lte('created_at', week_end)
+      .order('created_at', { ascending: true })
+
     // Calculate stats
     const avgPain = painLogs && painLogs.length > 0
       ? (painLogs.reduce((sum: number, l: any) => sum + l.score, 0) / painLogs.length).toFixed(1)
@@ -70,6 +104,62 @@ Deno.serve(async (req) => {
 
     const totalDays = adherenceLogs?.length ?? 0
     const completedDays = adherenceLogs?.filter((l: any) => l.confirmed).length ?? 0
+
+    // Programme completion stats
+    const completedExercises = (completionLogs ?? []).filter((l: any) => l.status === 'completed')
+    const totalExercises = (completionLogs ?? []).length
+    const completionAdherence = totalExercises > 0
+      ? Math.round((completedExercises.length / totalExercises) * 100)
+      : null
+    const difficultyRatings = (completionLogs ?? []).filter((l: any) => l.difficulty_rating != null)
+    const avgDifficulty = difficultyRatings.length > 0
+      ? (difficultyRatings.reduce((s: number, l: any) => s + l.difficulty_rating, 0) / difficultyRatings.length).toFixed(1)
+      : null
+    const missedDays = [...new Set(
+      (completionLogs ?? []).filter((l: any) => l.status !== 'completed').map((l: any) => l.log_date)
+    )]
+
+    // Data-derived summary (used as fallback / label for the AI summary)
+    const fallbackSummary =
+      `The patient completed ${completedExercises.length} of ${totalExercises} prescribed exercise sessions this week (${completionAdherence ?? 0}% programme adherence).` +
+      (avgPain !== 'N/A' ? ` Average reported pain was ${avgPain}/10.` : '') +
+      (avgDifficulty ? ` Average difficulty was ${avgDifficulty}/5.` : '') +
+      (flags && flags.length > 0 ? ` ${flags.length} response(s) were flagged for clinician review.` : '')
+
+    // AI-generated summary (labelled clearly; falls back to data-derived text)
+    async function generateAiSummary() {
+      const dataText = JSON.stringify({
+        adherence_percent: completionAdherence,
+        avg_pain: avgPain,
+        avg_difficulty: avgDifficulty,
+        missed_days: missedDays,
+        completion_count: `${completedExercises.length}/${totalExercises}`,
+        flags: (flags ?? []).map((f: any) => ({ severity: f.severity, details: f.details }))
+      })
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') ?? '',
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 300,
+            system: 'You are a clinical reporting assistant for physiotherapists. Summarise the following structured rehabilitation data in 2-3 clear sentences. Do not invent findings. Only report what the data shows.',
+            messages: [{ role: 'user', content: dataText }]
+          })
+        })
+        const data = await res.json()
+        return data?.content?.[0]?.text ?? ''
+      } catch {
+        return ''
+      }
+    }
+    const aiSummary = (await generateAiSummary()) || fallbackSummary
+
+    const programmeRow = programme?.programme_exercises ?? []
 
     // Build HTML report
     const html = `
@@ -273,6 +363,61 @@ Deno.serve(async (req) => {
         }
       </tbody>
     </table>
+  </div>
+
+  ${programme ? `
+  <div class="section">
+    <h3>Rehabilitation Programme</h3>
+    <div class="info-grid">
+      <div class="info-item"><strong>Programme:</strong> ${programme.name}</div>
+      <div class="info-item"><strong>Status:</strong> ${programme.status}</div>
+      <div class="info-item"><strong>Period:</strong> ${programme.start_date ?? '—'} to ${programme.end_date ?? '—'}</div>
+      <div class="info-item"><strong>Goals:</strong> ${programme.goal ?? '—'}</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Exercise</th><th>Dosage</th><th>Frequency</th><th>Laterality</th></tr>
+      </thead>
+      <tbody>
+        ${(programme.programme_exercises ?? []).map((pe: any, i: number) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${pe.exercises?.name_en ?? 'Exercise'}</td>
+            <td>${[pe.sets && `${pe.sets} × ${pe.repetitions ?? ''}`, pe.duration_seconds && `${pe.duration_seconds} sec`].filter(Boolean).join(' ') || '—'}</td>
+            <td>${pe.frequency}</td>
+            <td>${pe.laterality ?? '—'}</td>
+          </tr>`).join('') ?? '<tr><td colspan="5">No exercises</td></tr>'}
+      </tbody>
+    </table>
+  </div>` : ''}
+
+  <div class="section">
+    <h3>Programme Feedback</h3>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="value">${avgDifficulty ?? 'N/A'}</div><div class="label">Avg Difficulty (1–5)</div></div>
+      <div class="stat-box"><div class="value">${completionAdherence ?? 0}%</div><div class="label">Programme Adherence</div></div>
+      <div class="stat-box"><div class="value">${completedExercises.length}/${totalExercises}</div><div class="label">Exercises Completed</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Missed Sessions</h3>
+    ${missedDays.length > 0
+      ? `<table><thead><tr><th>Date</th></tr></thead><tbody>${missedDays.map((d: string) => `<tr><td class="missed">${d}</td></tr>`).join('')}</tbody></table>`
+      : '<p>No missed sessions this week.</p>'}
+  </div>
+
+  <div class="section">
+    <h3>Clinician Flags</h3>
+    ${flags && flags.length > 0
+      ? `<table><thead><tr><th>Date</th><th>Severity</th><th>Details</th><th>Status</th></tr></thead><tbody>${flags.map((f: any) => `<tr><td>${f.created_at.slice(0, 10)}</td><td class="${f.severity === 'urgent' ? 'missed' : ''}">${f.severity}</td><td>${f.details ?? ''}</td><td>${f.status}</td></tr>`).join('')}</tbody></table>`
+      : '<p>No flags for this week.</p>'}
+  </div>
+
+  <div class="section" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:15px;">
+    <h3>AI-Generated Summary</h3>
+    <p style="font-size:13px;">${aiSummary}</p>
+    <p style="font-size:11px;color:#6b7280;">Automatically generated summary for clinical decision support. The underlying data is shown above; always verify against raw data.</p>
   </div>
 
   <div class="footer">

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkSafety } from '../_shared/stroke.js'
+import { checkSafety, isScheduledToday } from '../_shared/stroke.js'
 
 async function sendWhatsApp(to: string, message: string) {
   const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')!
@@ -7,7 +7,7 @@ async function sendWhatsApp(to: string, message: string) {
   const formattedTo = to.replace('+', '')
 
   const response = await fetch(
-    `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
     {
       method: 'POST',
       headers: {
@@ -31,6 +31,54 @@ async function sendWhatsApp(to: string, message: string) {
     )
   }
   return result
+}
+
+function sanitizeVideoUrl(link: string): string {
+  return link
+    .replace(/ /g, '%20')
+    .replace(/&/g, '%26')
+    .replace(/\+/g, '%2B')
+    .replace(/,/g, '%2C')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/'/g, '%27')
+    .replace(/#/g, '%23')
+}
+
+async function sendWhatsAppVideo(to: string, link: string, caption?: string) {
+  try {
+    const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')!
+    const accessToken = Deno.env.get('META_ACCESS_TOKEN')!
+    const formattedTo = to.replace('+', '')
+
+    const response = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: formattedTo,
+          type: 'video',
+          video: { link: sanitizeVideoUrl(link), caption }
+        })
+      }
+    )
+    const result = await response.json()
+    console.log('Meta API response:', JSON.stringify(result))
+    if (!response.ok || result.error) {
+      console.error(`Video send failed (${caption}): ${result.error?.message ?? `HTTP ${response.status}`}`)
+      return null
+    }
+    return result
+  } catch (err) {
+    console.error(`Video send error (${caption}): ${err.message}`)
+    return null
+  }
 }
 
 async function getClaudeResponse(
@@ -235,6 +283,75 @@ Deno.serve(async (req) => {
         patient_id: patient.id, direction: 'outbound',
         message_type: 'ai_response', content: reply
       })
+      return okResponse
+    }
+
+    // 6. Video request → send today's exercise demonstrations as videos
+    const videoKeywords = ['video', 'demo', 'onyesho', 'nionyeshe']
+    if (videoKeywords.some((w) => lowered.includes(w))) {
+      let videos: any[] = []
+
+      const { data: programme } = await supabase
+        .from('rehabilitation_programmes')
+        .select(`
+          start_date, end_date,
+          programme_exercises (
+            is_active, frequency, days_of_week,
+            exercises ( name_en, name_sw, video_url )
+          )
+        `)
+        .eq('patient_id', patient.id)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      const todayDow = new Date(`${today}T00:00:00Z`).getUTCDay()
+      const inRange = programme &&
+        (!programme.start_date || today >= programme.start_date) &&
+        (!programme.end_date || today <= programme.end_date)
+
+      if (programme && inRange) {
+        videos = (programme.programme_exercises ?? [])
+          .filter((pe: any) => isScheduledToday(pe, todayDow) && pe.exercises?.video_url)
+          .map((pe: any) => pe.exercises)
+      } else {
+        const { data: legacyExercises } = await supabase
+          .from('patient_exercises')
+          .select(`exercises ( name_en, name_sw, video_url )`)
+          .eq('patient_id', patient.id)
+        videos = (legacyExercises ?? [])
+          .map((pe: any) => pe.exercises)
+          .filter((ex: any) => ex && ex.video_url)
+      }
+
+      if (videos.length === 0) {
+        const reply = lang === 'sw'
+          ? `Samahani, hakuna video za mazoezi zinazopatikana kwa sasa. Wasiliana na mtaalamu wako wa tiba ya viungo.`
+          : `Sorry, there are no exercise videos available right now. Please contact your physiotherapist.`
+        await sendWhatsApp(from, reply)
+        await supabase.from('message_logs').insert({
+          patient_id: patient.id, direction: 'outbound',
+          message_type: 'video_request', content: reply
+        })
+        return okResponse
+      }
+
+      const introReply = lang === 'sw'
+        ? `Hapa kuna video za mazoezi ya leo:`
+        : `Here are today's exercise demonstration videos:`
+      await sendWhatsApp(from, introReply)
+      await supabase.from('message_logs').insert({
+        patient_id: patient.id, direction: 'outbound',
+        message_type: 'video_request', content: introReply
+      })
+
+      for (const ex of videos) {
+        const name = lang === 'sw' ? (ex.name_sw ?? ex.name_en) : ex.name_en
+        await sendWhatsAppVideo(from, ex.video_url, name)
+        await supabase.from('message_logs').insert({
+          patient_id: patient.id, direction: 'outbound',
+          message_type: 'exercise_video', content: ex.video_url
+        })
+      }
       return okResponse
     }
 

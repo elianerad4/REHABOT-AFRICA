@@ -23,6 +23,7 @@ export default function PatientDetail() {
   const [newExerciseName, setNewExerciseName] = useState('')
   const [newExerciseDescription, setNewExerciseDescription] = useState('')
   const [reminderTime, setReminderTime] = useState('')
+  const [reminderSaveStatus, setReminderSaveStatus] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
 
   async function fetchAll() {
@@ -109,16 +110,31 @@ export default function PatientDetail() {
     setPatient({ ...patient, status: newStatus })
   }
 
-  async function updateReminderTime(e) {
-    const value = e.target.value
-    setReminderTime(value)
-    if (!value) return
-    const time = value.length === 5 ? `${value}:00` : value
-    await supabase
+  function handleReminderTimeChange(e) {
+    setReminderTime(e.target.value)
+    setReminderSaveStatus('')
+  }
+
+  async function saveReminderTime() {
+    const value = reminderTime
+    if (!value) {
+      setReminderSaveStatus('')
+      return
+    }
+    if (!/^\d{2}:\d{2}$/.test(value)) return
+    setReminderSaveStatus('saving')
+    const time = `${value}:00`
+    const { error } = await supabase
       .from('patients')
       .update({ reminder_time: time })
       .eq('id', id)
+    if (error) {
+      console.error('Failed to update reminder time:', error.message)
+      setReminderSaveStatus('error')
+      return
+    }
     setPatient({ ...patient, reminder_time: time })
+    setReminderSaveStatus('saved')
   }
 
   function getStatusColor(status) {
@@ -232,9 +248,13 @@ export default function PatientDetail() {
             <input
               type="time"
               value={reminderTime}
-              onChange={updateReminderTime}
+              onChange={handleReminderTimeChange}
+              onBlur={saveReminderTime}
               className="text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-500"
             />
+            {reminderSaveStatus === 'saving' && <span className="text-gray-400">…</span>}
+            {reminderSaveStatus === 'saved' && <span className="text-green-600">✓ saved</span>}
+            {reminderSaveStatus === 'error' && <span className="text-red-500">failed</span>}
           </label>
           {/* Status selector */}
         <select

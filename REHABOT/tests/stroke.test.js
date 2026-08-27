@@ -144,6 +144,27 @@ test('buildExerciseListLines builds a numbered programme message', () => {
   assert.match(list, /3\. Supported marching — 2 × 10/)
 })
 
+test('buildExerciseListLines has no leading newline', () => {
+  const items = [
+    { exercises: { name_en: 'Sit-to-stand' }, sets: 3, repetitions: 8 },
+    { exercises: { name_en: 'Weight shifting' }, sets: 2, repetitions: 10 }
+  ]
+  const list = buildExerciseListLines(items)
+  assert.ok(!list.startsWith('\n'))
+})
+
+test('buildExerciseListLines uses Swahili names when lang is sw', () => {
+  const items = [
+    { exercises: { name_en: 'Sit-to-stand', name_sw: 'Kukaa-kusimama' }, sets: 3, repetitions: 8 },
+    { exercises: { name_en: 'Weight shifting' }, duration_seconds: 30 }
+  ]
+  const swList = buildExerciseListLines(items, 'sw')
+  assert.match(swList, /1\. Kukaa-kusimama — 3 × 8/)
+  assert.match(swList, /2\. Weight shifting — 30 seconds/)
+  const enList = buildExerciseListLines(items, 'en')
+  assert.match(enList, /1\. Sit-to-stand — 3 × 8/)
+})
+
 // ---------------------------------------------------------------------------
 // End-to-end scheduling decision (mimics send-daily-reminders logic)
 // ---------------------------------------------------------------------------

@@ -90,8 +90,12 @@ export function computeWeeklyAdherence(completedCount, expectedSessions) {
 }
 
 // Build the numbered exercise list lines used in the WhatsApp programme message.
-export function buildExerciseListLines(items) {
+export function buildExerciseListLines(items, lang = 'en') {
   return items
-    .map((pe, i) => `\n${i + 1}. ${pe.exercises?.name_en ?? 'Exercise'} — ${formatDosage(pe)}`)
-    .join('')
+    .map((pe, i) => {
+      const fallback = pe.exercises?.name_en ?? 'Exercise'
+      const name = lang === 'sw' ? (pe.exercises?.name_sw ?? fallback) : fallback
+      return `${i + 1}. ${name} — ${formatDosage(pe)}`
+    })
+    .join(' • ')
 }

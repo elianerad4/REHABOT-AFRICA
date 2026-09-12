@@ -219,7 +219,7 @@ function Navbar() {
   )
 }
 
-function WhatsAppChat({ messages, minHeight = '360px' }) {
+function WhatsAppChat({ messages }) {
   return (
     <div className="w-[300px] sm:w-[340px] bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden mx-auto">
       <div className="bg-[#075e54] px-4 py-3 flex items-center gap-3">

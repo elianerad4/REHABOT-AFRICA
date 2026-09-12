@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { isScheduledToday, formatEatDate, formatDosage, buildExerciseListLines } from '../_shared/stroke.js'
 
 async function sendWhatsAppTemplate(
   to: string,
@@ -42,7 +41,10 @@ async function sendWhatsAppTemplate(
   return result
 }
 
-async function sendWhatsAppText(to: string, message: string) {
+// Free-form text fallback. Only deliverable inside WhatsApp's 24-hour customer
+// service window (i.e. the patient messaged us in the last 24h), which is
+// exactly the gap while the reminder templates are still pending approval.
+async function sendWhatsAppText(to: string, body: string) {
   const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')!
   const accessToken = Deno.env.get('META_ACCESS_TOKEN')!
   const formattedTo = to.replace('+', '')
@@ -60,30 +62,52 @@ async function sendWhatsAppText(to: string, message: string) {
         recipient_type: 'individual',
         to: formattedTo,
         type: 'text',
-        text: { preview_url: false, body: message }
+        text: { preview_url: false, body }
       })
     }
   )
   const result = await response.json()
-  console.log('Meta API response:', JSON.stringify(result))
+  console.log('Free-form text response:', JSON.stringify(result))
   if (!response.ok || result.error) {
     throw new Error(
-      `Meta text error: ${result.error?.message ?? `HTTP ${response.status}`}`
+      `Meta free-form error: ${result.error?.message ?? `HTTP ${response.status}`}`
     )
   }
   return result
 }
 
+// Normalizes a video URL for WhatsApp: decodes each path segment (in case it's
+// already partially percent-encoded, e.g. copied from the Supabase dashboard)
+// then re-encodes it fully, so special characters in filenames (&, (), +, ,)
+// are handled correctly without corrupting a real query string (?token=...).
 function sanitizeVideoUrl(link: string): string {
-  return link
-    .replace(/ /g, '%20')
-    .replace(/&/g, '%26')
-    .replace(/\+/g, '%2B')
-    .replace(/,/g, '%2C')
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29')
-    .replace(/'/g, '%27')
-    .replace(/#/g, '%23')
+  try {
+    const url = new URL(link)
+    url.pathname = url.pathname
+      .split('/')
+      .map((segment) => {
+        let decoded = segment
+        try { decoded = decodeURIComponent(segment) } catch { /* leave as-is */ }
+        return encodeURIComponent(decoded)
+      })
+      .join('/')
+    return url.toString()
+  } catch {
+    return link
+  }
+}
+
+// WhatsApp Cloud API rejects video messages over 16MB.
+const MAX_VIDEO_BYTES = 16 * 1024 * 1024
+
+async function getVideoSize(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, { method: 'HEAD' })
+    const len = res.headers.get('content-length')
+    return len ? parseInt(len, 10) : null
+  } catch {
+    return null
+  }
 }
 
 async function sendWhatsAppVideo(to: string, videoUrl: string, caption: string) {
@@ -132,52 +156,27 @@ function getGreeting(eatHour: number): string {
   return 'Usiku mwema'
 }
 
-async function sendProgrammeTemplate(to: string, params: Record<string, string>, lang = 'en') {
-  const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')!
-  const accessToken = Deno.env.get('META_ACCESS_TOKEN')!
-  const formattedTo = to.replace('+', '')
-
-  const response = await fetch(
-    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: formattedTo,
-        type: 'template',
-        template: {
-          name: lang === 'sw' ? 'stroke_programme_daily_swahili' : 'stroke_programme_daily',
-          language: { code: lang },
-          components: [{
-            type: 'body',
-            parameters: Object.entries(params).map(([parameter_name, text]) => ({
-              type: 'text',
-              parameter_name,
-              text
-            }))
-          }]
-        }
-      })
-    }
-  )
-  const result = await response.json()
-  console.log('Meta API response:', JSON.stringify(result))
-  if (!response.ok || result.error) {
-    throw new Error(
-      `Meta template error (stroke_programme_daily): ${result.error?.message ?? `HTTP ${response.status}`}`
-    )
-  }
-  return result
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200 })
+  }
+
+  // TEMPORARY DIAGNOSTIC — read-only check of the Meta credentials against
+  // the phone number ID. Sends nothing to any patient. Remove once the
+  // reminder-sending failure is resolved.
+  const url = new URL(req.url)
+  if (url.searchParams.get('diagnostic') === '1') {
+    const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')
+    const accessToken = Deno.env.get('META_ACCESS_TOKEN')
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const body = await res.json()
+    return new Response(
+      JSON.stringify({ phone_number_id_used: phoneNumberId, http_status: res.status, meta_response: body }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
   }
 
   try {
@@ -214,32 +213,11 @@ Deno.serve(async (req) => {
 
     console.log(`Total active patients: ${patients?.length ?? 0}`)
 
-    // Fetch all active rehabilitation programmes with their exercises.
-    const { data: programmes } = await supabase
-      .from('rehabilitation_programmes')
-      .select(`
-        id, patient_id, name, start_date, end_date,
-        programme_exercises (
-          id, sets, repetitions, duration_seconds, frequency, days_of_week,
-          laterality, instructions, is_active,
-          exercises ( name_en, name_sw, video_url )
-        )
-      `)
-      .eq('status', 'active')
-
-    const programmeByPatient = new Map<string, any>()
-    for (const p of programmes ?? []) {
-      programmeByPatient.set(p.patient_id, p)
-    }
-
-    const todayDow = new Date(`${today}T00:00:00Z`).getUTCDay()
-
     // Filter patients whose reminder time has already passed today.
-    // The once-per-day guards below (adherence_logs / exercise_completion_logs)
-    // ensure each patient is notified exactly once per day, so any run at or
-    // after the reminder time delivers — regardless of cron cadence. Failed
-    // sends are retried on the next run because the guards are only inserted
-    // on success.
+    // The once-per-day guard below (adherence_logs) ensures each patient is
+    // notified exactly once per day, so any run at or after the reminder
+    // time delivers — regardless of cron cadence. Failed sends are retried
+    // on the next run because the guard is only inserted on success.
     const patientsToNotify = (patients ?? []).filter((patient: any) => {
       if (!patient.reminder_time) {
         // Default to 8am if no reminder time set
@@ -265,98 +243,6 @@ Deno.serve(async (req) => {
 
     for (const patient of patientsToNotify) {
       const lang = patient.language
-
-      // ------------------------------------------------------------------
-      // Active rehabilitation programme path
-      // ------------------------------------------------------------------
-      const programme = programmeByPatient.get(patient.id)
-      if (programme) {
-        const inDateRange = (!programme.start_date || today >= programme.start_date) &&
-          (!programme.end_date || today <= programme.end_date)
-        if (!inDateRange) {
-          console.log(`Programme for ${patient.full_name} not in date range — skipping`)
-          continue
-        }
-
-        const todaysExercises = (programme.programme_exercises ?? []).filter((pe: any) => isScheduledToday(pe, todayDow))
-        if (todaysExercises.length === 0) {
-          console.log(`No exercises scheduled for ${patient.full_name} today — skipping`)
-          continue
-        }
-
-        const { data: existingCompletion } = await supabase
-          .from('exercise_completion_logs')
-          .select('id')
-          .eq('patient_id', patient.id)
-          .eq('log_date', today)
-          .limit(1)
-
-        if (existingCompletion && existingCompletion.length > 0) {
-          console.log(`Programme already sent to ${patient.full_name} today — skipping`)
-          continue
-        }
-
-        const exerciseList = buildExerciseListLines(todaysExercises, lang)
-
-        console.log(`Sending daily programme to ${patient.full_name} at ${patient.phone_number}`)
-
-        try {
-          await sendProgrammeTemplate(patient.phone_number, {
-            customer_name: patient.full_name.split(' ')[0],
-            programme_date: formatEatDate(today),
-            exercise_list: exerciseList
-          }, lang)
-        } catch (err) {
-          console.error(`Failed to send programme to ${patient.full_name}: ${err.message}`)
-          continue
-        }
-
-        console.log(`Programme sent to ${patient.full_name}`)
-
-        await supabase.from('message_logs').insert({
-          patient_id: patient.id,
-          direction: 'outbound',
-          message_type: 'programme_reminder',
-          content: `Today's programme:${exerciseList}`
-        })
-
-        // Send exercise videos for today's exercises that have video URLs
-        const todaysVideos = todaysExercises.filter((pe: any) => pe.exercises?.video_url)
-
-        if (todaysVideos.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
-
-          for (const pe of todaysVideos) {
-            const name = lang === 'sw'
-              ? (pe.exercises.name_sw ?? pe.exercises.name_en)
-              : pe.exercises.name_en
-            const caption = `${name} - ${formatDosage(pe)}`
-
-            console.log(`Sending video for ${name} to ${patient.full_name}`)
-
-            await sendWhatsAppVideo(
-              patient.phone_number,
-              pe.exercises.video_url,
-              caption
-            )
-
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          }
-        }
-
-        await supabase.from('exercise_completion_logs').insert(
-          todaysExercises.map((pe: any) => ({
-            patient_id: patient.id,
-            programme_id: programme.id,
-            programme_exercise_id: pe.id,
-            log_date: today,
-            status: 'pending'
-          }))
-        )
-
-        sent++
-        continue
-      }
 
       // Once-per-day guard: skip if this patient already received a reminder today
       const { data: existingLog } = await supabase
@@ -394,27 +280,49 @@ Deno.serve(async (req) => {
       const reminderTime = (patient.reminder_time ?? '').substring(0, 5) || '08:00'
 
       const parameters = lang === 'sw'
-        ? [getGreeting(eatHour), clinicName, exerciseText]
-          .map((text) => ({ type: 'text', text }))
+        ? [
+            { type: 'text', parameter_name: 'greeting', text: getGreeting(eatHour) },
+            { type: 'text', parameter_name: 'clinic_name', text: clinicName },
+            { type: 'text', parameter_name: 'exercise_list', text: exerciseText }
+          ]
         : [
             { type: 'text', parameter_name: 'customer_name', text: patient.full_name },
             { type: 'text', parameter_name: 'reminder_time', text: reminderTime },
             { type: 'text', parameter_name: 'exercise_list', text: exerciseText }
           ]
 
+      // Free-form fallback body used when the template is not yet approved.
+      const fallbackBody = lang === 'sw'
+        ? `${getGreeting(eatHour)}, hii ni kumbusho kutoka ${clinicName}. Mazoezi yako leo: ${exerciseText}`
+        : `Hello ${patient.full_name}, this is your reminder from ${clinicName}. Your exercises today: ${exerciseText}`
+
+      // Both reminder templates have an IMAGE header, so Meta requires a
+      // matching header component (public image link) before the body params.
+      const components: any[] = []
+      const headerImageUrl = Deno.env.get('META_TEMPLATE_HEADER_IMAGE_URL')
+      if (headerImageUrl) {
+        components.push({
+          type: 'header',
+          parameters: [{ type: 'image', image: { link: headerImageUrl } }]
+        })
+      }
+      components.push({ type: 'body', parameters })
+
       try {
         await sendWhatsAppTemplate(
           patient.phone_number,
           templateName,
           lang,
-          [{
-            type: 'body',
-            parameters
-          }]
+          components
         )
       } catch (err) {
-        console.error(`Failed to send reminder to ${patient.full_name}: ${err.message}`)
-        continue
+        console.error(`Template send failed for ${patient.full_name}: ${err.message} — trying free-form fallback`)
+        try {
+          await sendWhatsAppText(patient.phone_number, fallbackBody)
+        } catch (fallbackErr) {
+          console.error(`Free-form fallback failed for ${patient.full_name}: ${fallbackErr.message}`)
+          continue
+        }
       }
 
       console.log(`Reminder sent to ${patient.full_name}`)
@@ -444,13 +352,30 @@ Deno.serve(async (req) => {
             ? `${exerciseName} - Mara ${pe.sets} x ${pe.reps}`
             : `${exerciseName} - ${pe.sets} sets x ${pe.reps} reps`
 
+          const size = await getVideoSize(pe.exercises.video_url)
+          if (size !== null && size > MAX_VIDEO_BYTES) {
+            console.error(`Video too large for WhatsApp (${(size / 1048576).toFixed(1)}MB > 16MB): ${exerciseName} — ${pe.exercises.video_url}`)
+            await supabase.from('message_logs').insert({
+              patient_id: patient.id, direction: 'outbound',
+              message_type: 'exercise_video', status: 'failed',
+              content: `${exerciseName}: video exceeds WhatsApp's 16MB limit (${(size / 1048576).toFixed(1)}MB) — ${pe.exercises.video_url}`
+            })
+            continue
+          }
+
           console.log(`Sending video for ${exerciseName} to ${patient.full_name}`)
 
-          await sendWhatsAppVideo(
+          const sendResult = await sendWhatsAppVideo(
             patient.phone_number,
             pe.exercises.video_url,
             caption
           )
+
+          await supabase.from('message_logs').insert({
+            patient_id: patient.id, direction: 'outbound',
+            message_type: 'exercise_video', status: sendResult ? 'sent' : 'failed',
+            content: pe.exercises.video_url
+          })
 
           // Wait 1 second between each video to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 1000))
@@ -477,8 +402,8 @@ Deno.serve(async (req) => {
     console.log(`Total messages sent: ${sent}`)
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         sent,
         current_eat_time: `${eatHour}:${String(eatMinute).padStart(2, '0')}`,
         total_active_patients: patients?.length ?? 0,

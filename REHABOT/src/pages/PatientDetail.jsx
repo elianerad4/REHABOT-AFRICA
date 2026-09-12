@@ -35,7 +35,7 @@ export default function PatientDetail() {
       { data: exerciseData },
       { data: patientExerciseData }
     ] = await Promise.all([
-      supabase.from('patients').select('*, condition:conditions(name)').eq('id', id).single(),
+      supabase.from('patients').select('*').eq('id', id).single(),
       supabase.from('pain_logs').select('*').eq('patient_id', id)
         .order('logged_at', { ascending: true }).limit(14),
       supabase.from('adherence_logs').select('*').eq('patient_id', id)
@@ -227,18 +227,6 @@ export default function PatientDetail() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(`/patient/${patient.id}/programme`)}
-            className="text-sm text-green-600 hover:text-green-700 font-medium dark:text-green-400 dark:hover:text-green-300"
-          >
-            Rehabilitation Programme
-          </button>
-          <button
-            onClick={() => navigate(`/patient/${patient.id}/rehab`)}
-            className="text-sm text-green-600 hover:text-green-700 font-medium dark:text-green-400 dark:hover:text-green-300"
-          >
-            Progress
-          </button>
           <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
             {darkMode ? '☀️' : '🌙'}
           </button>
@@ -311,28 +299,6 @@ export default function PatientDetail() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-
-            {/* Clinical Profile */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Clinical Profile</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { label: 'Condition', value: patient.condition?.name },
-                  { label: 'Affected side', value: patient.affected_side },
-                  { label: 'Stroke type', value: patient.stroke_type },
-                  { label: 'Rehab phase', value: patient.rehab_phase },
-                  { label: 'Mobility level', value: patient.mobility_status },
-                  { label: 'Assistance level', value: patient.assistance_level }
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{item.label}</div>
-                    <div className="font-medium text-gray-900 dark:text-white text-sm capitalize">
-                      {item.value ?? '—'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* Pain Trend */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -445,9 +411,15 @@ export default function PatientDetail() {
                           })}
                         </span>
                         {msg.message_type && (
-                          <span className="text-xs bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 
+                          <span className="text-xs bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400
                                            px-2 py-0.5 rounded-full">
                             {msg.message_type}
+                          </span>
+                        )}
+                        {msg.status === 'failed' && (
+                          <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300
+                                           px-2 py-0.5 rounded-full font-medium">
+                            failed to send
                           </span>
                         )}
                       </div>

@@ -1,5 +1,23 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkSafety, isScheduledToday } from '../_shared/stroke.js'
+
+// Verifies Meta's X-Hub-Signature-256 header (HMAC-SHA256 of the raw request
+// body, keyed with the Meta App Secret) so this endpoint can't be spoofed by
+// anyone who finds the URL — without this, any caller could POST a forged
+// payload claiming to be from any patient's phone number.
+async function verifyMetaSignature(rawBody: string, signatureHeader: string | null, appSecret: string): Promise<boolean> {
+  if (!signatureHeader) return false
+  const expected = signatureHeader.replace(/^sha256=/, '')
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(appSecret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  )
+  const sigBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody))
+  const computed = Array.from(new Uint8Array(sigBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  if (computed.length !== expected.length) return false
+  let diff = 0
+  for (let i = 0; i < computed.length; i++) diff |= computed.charCodeAt(i) ^ expected.charCodeAt(i)
+  return diff === 0
+}
 
 async function sendWhatsApp(to: string, message: string) {
   const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')!
@@ -33,16 +51,38 @@ async function sendWhatsApp(to: string, message: string) {
   return result
 }
 
+// Normalizes a video URL for WhatsApp: decodes each path segment (in case it's
+// already partially percent-encoded, e.g. copied from the Supabase dashboard)
+// then re-encodes it fully, so special characters in filenames (&, (), +, ,)
+// are handled correctly without corrupting a real query string (?token=...).
 function sanitizeVideoUrl(link: string): string {
-  return link
-    .replace(/ /g, '%20')
-    .replace(/&/g, '%26')
-    .replace(/\+/g, '%2B')
-    .replace(/,/g, '%2C')
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29')
-    .replace(/'/g, '%27')
-    .replace(/#/g, '%23')
+  try {
+    const url = new URL(link)
+    url.pathname = url.pathname
+      .split('/')
+      .map((segment) => {
+        let decoded = segment
+        try { decoded = decodeURIComponent(segment) } catch { /* leave as-is */ }
+        return encodeURIComponent(decoded)
+      })
+      .join('/')
+    return url.toString()
+  } catch {
+    return link
+  }
+}
+
+// WhatsApp Cloud API rejects video messages over 16MB.
+const MAX_VIDEO_BYTES = 16 * 1024 * 1024
+
+async function getVideoSize(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, { method: 'HEAD' })
+    const len = res.headers.get('content-length')
+    return len ? parseInt(len, 10) : null
+  } catch {
+    return null
+  }
 }
 
 async function sendWhatsAppVideo(to: string, link: string, caption?: string) {
@@ -131,12 +171,29 @@ Deno.serve(async (req) => {
   const okResponse = new Response('OK', { status: 200 })
 
   try {
+    const rawBody = await req.text()
+
+    // Reject forged webhook calls once META_APP_SECRET is configured. Until
+    // then, log loudly rather than breaking the live webhook — see the
+    // deploy notes for the one-time setup step (set META_APP_SECRET from the
+    // Meta App dashboard, then this becomes a hard rejection).
+    const appSecret = Deno.env.get('META_APP_SECRET')
+    if (appSecret) {
+      const valid = await verifyMetaSignature(rawBody, req.headers.get('x-hub-signature-256'), appSecret)
+      if (!valid) {
+        console.error('Rejected webhook call: invalid X-Hub-Signature-256')
+        return new Response('Forbidden', { status: 403 })
+      }
+    } else {
+      console.error('META_APP_SECRET is not set — webhook signature is NOT being verified. Set this secret to prevent forged inbound messages.')
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const payload = await req.json()
+    const payload = JSON.parse(rawBody)
     console.log('Payload:', JSON.stringify(payload))
 
     const entry = payload.entry?.[0]
@@ -148,7 +205,10 @@ Deno.serve(async (req) => {
 
     const message = messages[0]
     const from = '+' + message.from
-    const messageBody = message.text?.body?.trim() ?? ''
+    // A tapped Quick Reply button on a template arrives as type 'button' with
+    // a fixed payload (set when the template's button was created), not as
+    // free text — so a patient tapping "Watch Video" never has to type it.
+    const messageBody = (message.text?.body ?? message.button?.payload ?? '').trim()
 
     console.log('From:', from, 'Message:', messageBody)
     if (!from || !messageBody) return okResponse
@@ -178,80 +238,12 @@ Deno.serve(async (req) => {
       content: messageBody
     })
 
-    // 1. Safety flags — concerning responses are flagged, never diagnosed.
-    const safety = checkSafety(messageBody, lang)
-    if (safety) {
-      await supabase.from('clinician_flags').insert({
-        patient_id: patient.id,
-        flag_type: 'concerning_response',
-        severity: safety.severity,
-        details: safety.details,
-        source: 'system'
-      })
-      await sendWhatsApp(from, safety.reply)
-      await supabase.from('message_logs').insert({
-        patient_id: patient.id, direction: 'outbound',
-        message_type: 'safety_flag', content: safety.reply
-      })
-      return okResponse
-    }
-
     const lowered = messageBody.toLowerCase()
     const trimmed = messageBody.trim()
     const isNumber = /^\d{1,2}$/.test(trimmed)
     const numeric = parseInt(trimmed)
 
-    // 2. Programme completion context for today
-    const { data: completionLogs } = await supabase
-      .from('exercise_completion_logs')
-      .select('id, status, difficulty_rating')
-      .eq('patient_id', patient.id)
-      .eq('log_date', today)
-      .limit(100)
-
-    const pendingCompletions = (completionLogs ?? []).filter(l => l.status === 'pending')
-    const awaitingDifficulty = (completionLogs ?? []).filter(l => l.status === 'completed' && l.difficulty_rating == null)
-
-    const doneWords = ['done', 'complete', 'completed', 'finished', 'nimefanya', 'nimemaliza']
-
-    // 3. DONE → mark today's programme exercises as completed, ask for difficulty
-    if (pendingCompletions.length > 0 && doneWords.includes(lowered)) {
-      const now = new Date().toISOString()
-      await supabase.from('exercise_completion_logs')
-        .update({ status: 'completed', completed_at: now, patient_response: messageBody })
-        .eq('patient_id', patient.id)
-        .eq('log_date', today)
-        .eq('status', 'pending')
-      const reply = lang === 'sw'
-        ? `Hongera! Umemaliza mazoezi ya leo. Ulikuwa mgumu kiasi gani? (1 - Rahisi sana, 5 - Mgumu sana)`
-        : `Well done! You completed today's programme. How difficult was it? (1 = very easy, 5 = very difficult)`
-      await sendWhatsApp(from, reply)
-      await supabase.from('message_logs').insert({
-        patient_id: patient.id, direction: 'outbound',
-        message_type: 'difficulty_prompt', content: reply
-      })
-      return okResponse
-    }
-
-    // 4. Difficulty rating (1-5) after completion
-    if (awaitingDifficulty.length > 0 && isNumber && numeric >= 1 && numeric <= 5) {
-      await supabase.from('exercise_completion_logs')
-        .update({ difficulty_rating: numeric, patient_response: messageBody })
-        .eq('patient_id', patient.id)
-        .eq('log_date', today)
-        .eq('status', 'completed')
-      const reply = lang === 'sw'
-        ? `Asante! Tumerekodi kiwango cha ugumu: ${numeric}/5. Daktari wako ataona.`
-        : `Thank you! We recorded your difficulty rating: ${numeric}/5. Your physio will review this.`
-      await sendWhatsApp(from, reply)
-      await supabase.from('message_logs').insert({
-        patient_id: patient.id, direction: 'outbound',
-        message_type: 'difficulty_rating', content: reply
-      })
-      return okResponse
-    }
-
-    // 5. Pain score (1-10)
+    // 1. Pain score (1-10)
     if (isNumber && numeric >= 1 && numeric <= 10) {
       await supabase.from('pain_logs').insert({
         patient_id: patient.id,
@@ -286,42 +278,17 @@ Deno.serve(async (req) => {
       return okResponse
     }
 
-    // 6. Video request → send today's exercise demonstrations as videos
+    // 2. Video request → send this patient's assigned exercise demonstrations
     const videoKeywords = ['video', 'demo', 'onyesho', 'nionyeshe']
     if (videoKeywords.some((w) => lowered.includes(w))) {
-      let videos: any[] = []
-
-      const { data: programme } = await supabase
-        .from('rehabilitation_programmes')
-        .select(`
-          start_date, end_date,
-          programme_exercises (
-            is_active, frequency, days_of_week,
-            exercises ( name_en, name_sw, video_url )
-          )
-        `)
+      const { data: patientExercises } = await supabase
+        .from('patient_exercises')
+        .select(`exercises ( name_en, name_sw, video_url )`)
         .eq('patient_id', patient.id)
-        .eq('status', 'active')
-        .maybeSingle()
 
-      const todayDow = new Date(`${today}T00:00:00Z`).getUTCDay()
-      const inRange = programme &&
-        (!programme.start_date || today >= programme.start_date) &&
-        (!programme.end_date || today <= programme.end_date)
-
-      if (programme && inRange) {
-        videos = (programme.programme_exercises ?? [])
-          .filter((pe: any) => isScheduledToday(pe, todayDow) && pe.exercises?.video_url)
-          .map((pe: any) => pe.exercises)
-      } else {
-        const { data: legacyExercises } = await supabase
-          .from('patient_exercises')
-          .select(`exercises ( name_en, name_sw, video_url )`)
-          .eq('patient_id', patient.id)
-        videos = (legacyExercises ?? [])
-          .map((pe: any) => pe.exercises)
-          .filter((ex: any) => ex && ex.video_url)
-      }
+      const videos = (patientExercises ?? [])
+        .map((pe: any) => pe.exercises)
+        .filter((ex: any) => ex && ex.video_url)
 
       if (videos.length === 0) {
         const reply = lang === 'sw'
@@ -346,10 +313,23 @@ Deno.serve(async (req) => {
 
       for (const ex of videos) {
         const name = lang === 'sw' ? (ex.name_sw ?? ex.name_en) : ex.name_en
-        await sendWhatsAppVideo(from, ex.video_url, name)
+
+        const size = await getVideoSize(ex.video_url)
+        if (size !== null && size > MAX_VIDEO_BYTES) {
+          console.error(`Video too large for WhatsApp (${(size / 1048576).toFixed(1)}MB > 16MB): ${name} — ${ex.video_url}`)
+          await supabase.from('message_logs').insert({
+            patient_id: patient.id, direction: 'outbound',
+            message_type: 'exercise_video', status: 'failed',
+            content: `${name}: video exceeds WhatsApp's 16MB limit (${(size / 1048576).toFixed(1)}MB) — ${ex.video_url}`
+          })
+          continue
+        }
+
+        const sendResult = await sendWhatsAppVideo(from, ex.video_url, name)
         await supabase.from('message_logs').insert({
           patient_id: patient.id, direction: 'outbound',
-          message_type: 'exercise_video', content: ex.video_url
+          message_type: 'exercise_video', status: sendResult ? 'sent' : 'failed',
+          content: ex.video_url
         })
       }
       return okResponse

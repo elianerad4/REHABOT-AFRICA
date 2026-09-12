@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -8,7 +8,6 @@ export default function AddPatient() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { darkMode, toggleDarkMode } = useTheme()
-  const [conditions, setConditions] = useState([])
   const [form, setForm] = useState({
     full_name: '',
     age: '',
@@ -30,20 +29,10 @@ export default function AddPatient() {
     pain_score: '',
     mobility_status: '',
     consent_messages: false,
-    consent_data: false,
-    condition_id: '',
-    affected_side: '',
-    stroke_type: '',
-    rehab_phase: '',
-    assistance_level: ''
+    consent_data: false
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    supabase.from('conditions').select('id, name').eq('is_active', true).order('name')
-      .then(({ data }) => setConditions(data ?? []))
-  }, [])
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target
@@ -127,12 +116,7 @@ export default function AddPatient() {
         language: form.language,
         notes,
         reminder_time: reminderTime,
-        status: 'active',
-        condition_id: form.condition_id || null,
-        affected_side: form.affected_side || null,
-        stroke_type: form.stroke_type || null,
-        rehab_phase: form.rehab_phase || null,
-        assistance_level: form.assistance_level || null
+        status: 'active'
       })
 
     if (insertError) {
@@ -312,7 +296,7 @@ export default function AddPatient() {
                     required
                     value={form.diagnosis}
                     onChange={handleChange}
-                    placeholder="e.g. Stroke, Clubfoot, Low back pain, CTEV"
+                    placeholder="e.g. Low back pain, ACL tear, Frozen shoulder"
                     className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
                                text-sm focus:outline-none focus:ring-2 
                                focus:ring-green-500 focus:border-transparent"
@@ -417,88 +401,14 @@ export default function AddPatient() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Condition
-                  </label>
-                  <select
-                    name="condition_id"
-                    value={form.condition_id}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
-                               text-sm focus:outline-none focus:ring-2 
-                               focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Select condition...</option>
-                    {conditions.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Affected side
-                  </label>
-                  <select
-                    name="affected_side"
-                    value={form.affected_side}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
-                               text-sm focus:outline-none focus:ring-2 
-                               focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Not set</option>
-                    <option value="left">Left</option>
-                    <option value="right">Right</option>
-                    <option value="bilateral">Bilateral</option>
-                    <option value="n/a">N/A</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Stroke type (if documented)
-                  </label>
-                  <input
-                    type="text"
-                    name="stroke_type"
-                    value={form.stroke_type}
-                    onChange={handleChange}
-                    placeholder="e.g. Ischaemic, haemorrhagic"
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
-                               text-sm focus:outline-none focus:ring-2 
-                               focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Rehabilitation phase
-                  </label>
-                  <select
-                    name="rehab_phase"
-                    value={form.rehab_phase}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
-                               text-sm focus:outline-none focus:ring-2 
-                               focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Not set</option>
-                    <option value="acute">Acute</option>
-                    <option value="subacute">Subacute</option>
-                    <option value="chronic">Chronic</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Mobility level
                   </label>
                   <select
                     name="mobility_status"
                     value={form.mobility_status}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
-                               text-sm focus:outline-none focus:ring-2 
+                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3
+                               text-sm focus:outline-none focus:ring-2
                                focus:ring-green-500 focus:border-transparent"
                   >
                     <option value="">Not set</option>
@@ -506,26 +416,6 @@ export default function AddPatient() {
                     <option value="Walks with support">Walks with support</option>
                     <option value="Wheelchair user">Wheelchair user</option>
                     <option value="Bedridden">Bedridden</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Assistance level
-                  </label>
-                  <select
-                    name="assistance_level"
-                    value={form.assistance_level}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-3 
-                               text-sm focus:outline-none focus:ring-2 
-                               focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Not set</option>
-                    <option value="independent">Independent</option>
-                    <option value="supervision">Supervision</option>
-                    <option value="assistance">Assistance</option>
-                    <option value="dependent">Dependent</option>
                   </select>
                 </div>
               </div>

@@ -245,12 +245,19 @@ Deno.serve(async (req) => {
       const lang = patient.language
 
       // Once-per-day guard: skip if this patient already received a reminder today
-      const { data: existingLog } = await supabase
+      const { data: existingLog, error: guardError } = await supabase
         .from('adherence_logs')
         .select('id')
         .eq('patient_id', patient.id)
         .eq('log_date', today)
         .maybeSingle()
+
+      // If the guard check itself fails, fail safe: skip this run rather than
+      // risk sending a duplicate reminder. A later cron run will retry.
+      if (guardError) {
+        console.error(`Guard query failed for ${patient.full_name} — skipping this run to avoid a duplicate: ${guardError.message}`)
+        continue
+      }
 
       if (existingLog) {
         console.log(`Already reminded ${patient.full_name} today — skipping`)

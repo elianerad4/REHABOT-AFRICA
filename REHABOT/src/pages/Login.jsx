@@ -1,7 +1,10 @@
-import Logo from '../components/ui/Logo'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import Logo from '../components/ui/Logo'
+import Input from '../components/ui/Input'
+import Button from '../components/ui/Button'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -15,10 +18,7 @@ export default function Login() {
     setError('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
@@ -29,76 +29,60 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 
-                      w-full max-w-md p-8">
-
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-2">
-  <Logo size="lg" />
-</div>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Sign in to your dashboard</p>
+    <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-8">
+          <Logo size="lg" />
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 
-                          rounded-lg px-4 py-3 text-sm mb-6">
-            {error}
+        <div className="bg-white dark:bg-surface-dark-raised rounded-xl shadow-card border border-neutral-200 dark:border-neutral-800 p-8">
+          <div className="mb-6">
+            <h1 className="text-xl font-display font-bold text-neutral-900 dark:text-white">Sign in</h1>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Access your clinic dashboard</p>
           </div>
-        )}
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
-            <input
+          {error && (
+            <div role="alert" className="flex items-start gap-2.5 bg-danger-50 dark:bg-danger-500/10 border border-red-200 dark:border-red-900 text-danger-600 dark:text-red-300 rounded-lg px-4 py-3 text-sm mb-6">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4" noValidate>
+            <Input
+              label="Email"
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@clinic.com"
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
-                         text-sm focus:outline-none focus:ring-2 focus:ring-green-500 
-                         focus:border-transparent"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
-            <input
+            <Input
+              label="Password"
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
-                         text-sm focus:outline-none focus:ring-2 focus:ring-green-500 
-                         focus:border-transparent"
             />
-          </div>
+            <Button type="submit" className="w-full" loading={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 
-                       text-white font-medium py-2.5 rounded-lg text-sm 
-                       transition-colors duration-200"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
+          <p className="text-center text-sm text-neutral-500 dark:text-neutral-400 mt-6">
+            No account yet?{' '}
+            <Link to="/register" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
+              Register here
+            </Link>
+          </p>
+        </div>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-          No account yet?{' '}
-          <Link to="/register" className="text-green-600 font-medium hover:underline">
-            Register here
-          </Link>
+        <p className="text-center text-xs text-neutral-400 dark:text-neutral-500 mt-6">
+          By signing in you agree to our{' '}
+          <Link to="/privacy" className="underline hover:text-neutral-600 dark:hover:text-neutral-300">Privacy Policy</Link>.
         </p>
       </div>
     </div>

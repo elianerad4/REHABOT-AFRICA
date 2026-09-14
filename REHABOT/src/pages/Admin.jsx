@@ -1,49 +1,31 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
-import Logo from '../components/ui/Logo'
+import TopBar from '../components/layout/TopBar'
+import PageHeader from '../components/ui/PageHeader'
+import StatCard from '../components/ui/StatCard'
+import Card from '../components/ui/Card'
+import Tabs from '../components/ui/Tabs'
+import Badge from '../components/ui/Badge'
+import { Table, THead, Th, Tr, Td } from '../components/ui/Table'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonCard } from '../components/ui/Skeleton'
+
+const STATUS_VARIANT = { active: 'success', trial: 'warning', expired: 'danger' }
 
 export default function Admin() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { darkMode, toggleDarkMode } = useTheme()
   const [loading, setLoading] = useState(true)
   const [authorized, setAuthorized] = useState(false)
-  const [stats, setStats] = useState({
-    totalPhysios: 0,
-    totalPatients: 0,
-    totalMessages: 0,
-    activePatients: 0,
-    trialPhysios: 0,
-    activePhysios: 0
-  })
+  const [stats, setStats] = useState({ totalPhysios: 0, totalPatients: 0, totalMessages: 0, activePatients: 0, trialPhysios: 0, activePhysios: 0 })
   const [physios, setPhysios] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
 
-  async function checkAdmin() {
-    const { data } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!data?.is_admin) {
-      navigate('/dashboard')
-      return
-    }
-
-    setAuthorized(true)
-    fetchAdminData()
-  }
-
   async function fetchAdminData() {
-    const [
-      { data: physioData },
-      { data: patientData },
-      { data: messageData }
-    ] = await Promise.all([
+    const [{ data: physioData }, { data: patientData }, { data: messageData }] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('patients').select('id, status, physio_id, created_at'),
       supabase.from('message_logs').select('id, direction, sent_at')
@@ -53,26 +35,22 @@ export default function Admin() {
     const patientList = patientData ?? []
     const messageList = messageData ?? []
 
-    // Calculate stats
     setStats({
-      totalPhysios: physioList.filter(p => !p.is_admin).length,
+      totalPhysios: physioList.filter((p) => !p.is_admin).length,
       totalPatients: patientList.length,
       totalMessages: messageList.length,
-      activePatients: patientList.filter(p => p.status === 'active').length,
-      trialPhysios: physioList.filter(p => p.subscription_status === 'trial' && !p.is_admin).length,
-      activePhysios: physioList.filter(p => p.subscription_status === 'active' && !p.is_admin).length
+      activePatients: patientList.filter((p) => p.status === 'active').length,
+      trialPhysios: physioList.filter((p) => p.subscription_status === 'trial' && !p.is_admin).length,
+      activePhysios: physioList.filter((p) => p.subscription_status === 'active' && !p.is_admin).length
     })
 
-    // Enrich physio list with patient counts
     const enriched = physioList
-      .filter(p => !p.is_admin)
-      .map(p => ({
+      .filter((p) => !p.is_admin)
+      .map((p) => ({
         ...p,
-        patientCount: patientList.filter(pt => pt.physio_id === p.id).length,
-        activePatients: patientList.filter(pt => pt.physio_id === p.id && pt.status === 'active').length,
-        messageCount: messageList.filter(m =>
-          patientList.some(pt => pt.id === m.patient_id && pt.physio_id === p.id)
-        ).length
+        patientCount: patientList.filter((pt) => pt.physio_id === p.id).length,
+        activePatients: patientList.filter((pt) => pt.physio_id === p.id && pt.status === 'active').length,
+        messageCount: messageList.filter((m) => patientList.some((pt) => pt.id === m.patient_id && pt.physio_id === p.id)).length
       }))
 
     setPhysios(enriched)
@@ -80,44 +58,43 @@ export default function Admin() {
   }
 
   useEffect(() => {
+    if (!user) return
+    async function checkAdmin() {
+      const { data } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
+      if (!data?.is_admin) {
+        navigate('/dashboard')
+        return
+      }
+      setAuthorized(true)
+      fetchAdminData()
+    }
     checkAdmin()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   async function updateSubscription(physioId, status) {
-    await supabase
-      .from('profiles')
-      .update({ subscription_status: status })
-      .eq('id', physioId)
+    await supabase.from('profiles').update({ subscription_status: status }).eq('id', physioId)
     fetchAdminData()
   }
 
-  function getStatusColor(status) {
-    if (status === 'active') return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
-    if (status === 'trial') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
-    return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
-  }
-
   function formatDate(date) {
-    return new Date(date).toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'short', year: 'numeric'
-    })
+    return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   function trialDaysLeft(trialEndsAt) {
     if (!trialEndsAt) return 0
-    const now = new Date()
-    const end = new Date(trialEndsAt)
-    const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24))
+    const diff = Math.ceil((new Date(trialEndsAt) - new Date()) / (1000 * 60 * 60 * 24))
     return diff > 0 ? diff : 0
   }
 
-  if (loading) {
+  if (!user || (loading && !authorized)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-green-600 dark:border-green-400 border-t-transparent 
-                          rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading admin panel...</p>
+      <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
+        <TopBar />
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
         </div>
       </div>
     )
@@ -125,241 +102,141 @@ export default function Admin() {
 
   if (!authorized) return null
 
+  const expiringTrials = physios.filter((p) => p.subscription_status === 'trial' && trialDaysLeft(p.trial_ends_at) <= 7)
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-
-      {/* Top Bar */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 
-                      flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Logo size="sm" />
-          <span className="text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 
-                           border border-orange-200 dark:border-orange-700 px-2 py-0.5 rounded-full">
-            ADMIN
+    <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
+      <TopBar
+        context={
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-warning-600 dark:text-amber-400 bg-warning-50 dark:bg-warning-500/10 border border-amber-200 dark:border-amber-900 px-2 py-0.5 rounded-full">
+            <ShieldCheck className="w-3 h-3" strokeWidth={2.25} /> Admin
           </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={toggleDarkMode} className="text-xl cursor-pointer hover:opacity-75 transition-opacity">
-            {darkMode ? '☀️' : '🌙'}
-          </button>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          >
-            ← Back to Dashboard
-          </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+        <PageHeader title="Rehabot Africa — Admin Panel" description="Overview of all clinics and platform activity." />
 
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Rehabot Africa — Admin Panel
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Overview of all clinics and platform activity.
-          </p>
-        </div>
-
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          {[
-            { label: 'Total Physios', value: stats.totalPhysios, color: 'text-gray-900 dark:text-white' },
-            { label: 'On Trial', value: stats.trialPhysios, color: 'text-yellow-600 dark:text-yellow-400' },
-            { label: 'Paying', value: stats.activePhysios, color: 'text-green-600 dark:text-green-400' },
-            { label: 'Total Patients', value: stats.totalPatients, color: 'text-gray-900 dark:text-white' },
-            { label: 'Active Patients', value: stats.activePatients, color: 'text-green-600 dark:text-green-400' },
-            { label: 'Total Messages', value: stats.totalMessages, color: 'text-blue-600 dark:text-blue-400' }
-          ].map((stat) => (
-            <div key={stat.label}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
-              <div className={`text-2xl font-bold ${stat.color}`}>
-                {stat.value}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{stat.label}</div>
-            </div>
-          ))}
+          <StatCard label="Total Physios" value={stats.totalPhysios} />
+          <StatCard label="On Trial" value={stats.trialPhysios} tone="warning" />
+          <StatCard label="Paying" value={stats.activePhysios} tone="success" />
+          <StatCard label="Total Patients" value={stats.totalPatients} />
+          <StatCard label="Active Patients" value={stats.activePatients} tone="success" />
+          <StatCard label="Total Messages" value={stats.totalMessages} tone="primary" />
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-6 w-fit">
-          {['overview', 'clinics'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium 
-                          transition-colors capitalize ${
-                activeTab === tab
-                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          className="mb-6"
+          tabs={[{ value: 'overview', label: 'Overview' }, { value: 'clinics', label: 'Clinics' }]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
 
-        {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-
-            {/* Trial Expiring Soon */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-                ⚠️ Trials Expiring Soon
-              </h3>
-              {physios.filter(p => p.subscription_status === 'trial' && 
-                trialDaysLeft(p.trial_ends_at) <= 7).length === 0 ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500">No trials expiring in next 7 days.</p>
+            <Card>
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-4 h-4 text-warning-500" strokeWidth={2} />
+                <h3 className="font-semibold text-neutral-900 dark:text-white">Trials Expiring Soon</h3>
+              </div>
+              {expiringTrials.length === 0 ? (
+                <p className="text-sm text-neutral-400 dark:text-neutral-500">No trials expiring in the next 7 days.</p>
               ) : (
                 <div className="space-y-3">
-                  {physios
-                    .filter(p => p.subscription_status === 'trial' && 
-                      trialDaysLeft(p.trial_ends_at) <= 7)
-                    .map(p => (
-                      <div key={p.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {p.full_name}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{p.clinic_name}</p>
-                        </div>
-                        <span className="text-xs font-bold text-red-600 dark:text-red-400">
-                          {trialDaysLeft(p.trial_ends_at)} days left
-                        </span>
-                      </div>
-                    ))
-                  }
-                </div>
-              )}
-            </div>
-
-            {/* Recent Signups */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-                🆕 Recent Signups
-              </h3>
-              {physios.length === 0 ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500">No physios signed up yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {physios.slice(0, 5).map(p => (
+                  {expiringTrials.map((p) => (
                     <div key={p.id} className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {p.full_name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{p.clinic_name}</p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">{p.full_name}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">{p.clinic_name}</p>
                       </div>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">
-                        {formatDate(p.created_at)}
-                      </span>
+                      <span className="text-xs font-semibold text-danger-500">{trialDaysLeft(p.trial_ends_at)} days left</span>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-4 h-4 text-primary-500" strokeWidth={2} />
+                <h3 className="font-semibold text-neutral-900 dark:text-white">Recent Signups</h3>
+              </div>
+              {physios.length === 0 ? (
+                <p className="text-sm text-neutral-400 dark:text-neutral-500">No physios signed up yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {physios.slice(0, 5).map((p) => (
+                    <div key={p.id} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">{p.full_name}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">{p.clinic_name}</p>
+                      </div>
+                      <span className="text-xs text-neutral-400 dark:text-neutral-500">{formatDate(p.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </div>
         )}
 
-        {/* Clinics Tab */}
         {activeTab === 'clinics' && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <Card padding="none">
             {physios.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
-                No clinics have signed up yet.
-              </div>
+              <EmptyState title="No clinics have signed up yet." />
             ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
-                                   uppercase tracking-wider px-6 py-3">
-                      Physio / Clinic
-                    </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
-                                   uppercase tracking-wider px-6 py-3">
-                      Patients
-                    </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
-                                   uppercase tracking-wider px-6 py-3">
-                      Joined
-                    </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
-                                   uppercase tracking-wider px-6 py-3">
-                      Trial Ends
-                    </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
-                                   uppercase tracking-wider px-6 py-3">
-                      Status
-                    </th>
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 
-                                   uppercase tracking-wider px-6 py-3">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
+              <Table>
+                <THead>
+                  <Th>Physio / Clinic</Th>
+                  <Th>Patients</Th>
+                  <Th>Joined</Th>
+                  <Th>Trial Ends</Th>
+                  <Th>Status</Th>
+                  <Th>Action</Th>
+                </THead>
                 <tbody>
                   {physios.map((p) => (
-                    <tr key={p.id}
-                      className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 dark:text-white text-sm">
-                          {p.full_name}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{p.clinic_name}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {p.patientCount} total
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {p.activePatients} active
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {formatDate(p.created_at)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                    <Tr key={p.id}>
+                      <Td>
+                        <div className="font-medium text-neutral-900 dark:text-white">{p.full_name}</div>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">{p.clinic_name}</div>
+                      </Td>
+                      <Td>
+                        <div className="text-neutral-900 dark:text-white">{p.patientCount} total</div>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">{p.activePatients} active</div>
+                      </Td>
+                      <Td>{formatDate(p.created_at)}</Td>
+                      <Td>
                         {p.trial_ends_at ? (
-                          <span className={trialDaysLeft(p.trial_ends_at) <= 3 
-                            ? 'text-red-600 dark:text-red-400 font-medium' : ''}>
+                          <span className={trialDaysLeft(p.trial_ends_at) <= 3 ? 'text-danger-500 font-medium' : ''}>
                             {formatDate(p.trial_ends_at)}
                             {p.subscription_status === 'trial' && (
-                              <span className="block text-xs">
-                                {trialDaysLeft(p.trial_ends_at)} days left
-                              </span>
+                              <span className="block text-xs">{trialDaysLeft(p.trial_ends_at)} days left</span>
                             )}
                           </span>
                         ) : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs font-medium px-2.5 py-1 
-                                          rounded-full ${getStatusColor(p.subscription_status)}`}>
-                          {p.subscription_status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
+                      </Td>
+                      <Td>
+                        <Badge variant={STATUS_VARIANT[p.subscription_status] ?? 'neutral'}>{p.subscription_status}</Badge>
+                      </Td>
+                      <Td>
                         <select
                           value={p.subscription_status}
                           onChange={(e) => updateSubscription(p.id, e.target.value)}
-                           className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg 
-                                      px-2 py-1 bg-white dark:bg-gray-700 dark:text-white focus:outline-none 
-                                      focus:ring-1 focus:ring-green-500"
+                          className="text-xs border border-neutral-300 dark:border-neutral-700 rounded-lg px-2 py-1 bg-white dark:bg-surface-dark-raised dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
                         >
                           <option value="trial">Trial</option>
                           <option value="active">Active</option>
                           <option value="expired">Expired</option>
                         </select>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
                 </tbody>
-              </table>
+              </Table>
             )}
-          </div>
+          </Card>
         )}
       </div>
     </div>

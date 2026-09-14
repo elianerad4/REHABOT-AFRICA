@@ -1,16 +1,16 @@
-import Logo from '../components/ui/Logo'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import Logo from '../components/ui/Logo'
+import Input from '../components/ui/Input'
+import Checkbox from '../components/ui/Checkbox'
+import Button from '../components/ui/Button'
 
 export default function Register() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({
-    full_name: '',
-    clinic_name: '',
-    email: '',
-    password: ''
-  })
+  const [form, setForm] = useState({ full_name: '', clinic_name: '', email: '', password: '' })
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -21,6 +21,12 @@ export default function Register() {
   async function handleRegister(e) {
     e.preventDefault()
     setError('')
+
+    if (!agreed) {
+      setError('Please accept the Privacy Policy to continue.')
+      return
+    }
+
     setLoading(true)
 
     const { error: signUpError } = await supabase.auth.signUp({
@@ -45,114 +51,90 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 
-                      w-full max-w-md p-8">
-
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-2">
-  <Logo size="lg" />
-</div>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Start your 14-day free trial</p>
+    <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-8">
+          <Logo size="lg" />
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 
-                          rounded-lg px-4 py-3 text-sm mb-6">
-            {error}
+        <div className="bg-white dark:bg-surface-dark-raised rounded-xl shadow-card border border-neutral-200 dark:border-neutral-800 p-8">
+          <div className="mb-6">
+            <h1 className="text-xl font-display font-bold text-neutral-900 dark:text-white">Create your account</h1>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Start your 14-day free trial</p>
           </div>
-        )}
 
-        {/* Form */}
-        <form onSubmit={handleRegister} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Your full name
-            </label>
-            <input
-              type="text"
+          {error && (
+            <div role="alert" className="flex items-start gap-2.5 bg-danger-50 dark:bg-danger-500/10 border border-red-200 dark:border-red-900 text-danger-600 dark:text-red-300 rounded-lg px-4 py-3 text-sm mb-6">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleRegister} className="space-y-4" noValidate>
+            <Input
+              label="Your full name"
               name="full_name"
               required
+              autoComplete="name"
               value={form.full_name}
               onChange={handleChange}
               placeholder="Elian Darva"
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
-                         text-sm focus:outline-none focus:ring-2 focus:ring-green-500 
-                         focus:border-transparent"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Clinic name
-            </label>
-            <input
-              type="text"
+            <Input
+              label="Clinic name"
               name="clinic_name"
               required
               value={form.clinic_name}
               onChange={handleChange}
               placeholder="CCBRT Physiotherapy"
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
-                         text-sm focus:outline-none focus:ring-2 focus:ring-green-500 
-                         focus:border-transparent"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
-            <input
+            <Input
+              label="Email"
               type="email"
               name="email"
               required
+              autoComplete="email"
               value={form.email}
               onChange={handleChange}
               placeholder="you@clinic.com"
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
-                         text-sm focus:outline-none focus:ring-2 focus:ring-green-500 
-                         focus:border-transparent"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
-            <input
+            <Input
+              label="Password"
               type="password"
               name="password"
               required
               minLength={6}
+              autoComplete="new-password"
               value={form.password}
               onChange={handleChange}
               placeholder="Min. 6 characters"
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2.5 
-                         text-sm focus:outline-none focus:ring-2 focus:ring-green-500 
-                         focus:border-transparent"
             />
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 
-                       text-white font-medium py-2.5 rounded-lg text-sm 
-                       transition-colors duration-200"
-          >
-            {loading ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
+            <Checkbox
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              label={
+                <>
+                  I agree to the{' '}
+                  <Link to="/privacy" target="_blank" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
+                    Privacy Policy
+                  </Link>
+                </>
+              }
+            />
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-green-600 font-medium hover:underline">
-            Sign in
-          </Link>
-        </p>
+            <Button type="submit" className="w-full" loading={loading}>
+              {loading ? 'Creating account…' : 'Create account'}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm text-neutral-500 dark:text-neutral-400 mt-6">
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )

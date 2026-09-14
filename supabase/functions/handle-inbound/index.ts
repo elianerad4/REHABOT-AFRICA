@@ -200,6 +200,26 @@ Deno.serve(async (req) => {
     const changes = entry?.changes?.[0]
     const value = changes?.value
     const messages = value?.messages
+    const statuses = value?.statuses
+
+    // Meta delivery-status callbacks (sent/delivered/read/failed). A media
+    // message can return HTTP 200 from the send API and still fail moments
+    // later, so these callbacks are the only source of truth for real
+    // delivery. Match the outbound log by Meta's wamid (stored in twilio_sid).
+    if (statuses && statuses.length > 0) {
+      for (const status of statuses) {
+        if (status.status === 'failed') {
+          const detail = status.errors?.[0]?.error_data?.details
+            ?? status.errors?.[0]?.title
+            ?? 'unknown delivery error'
+          console.error(`Delivery failed for ${status.id}: ${detail}`)
+          await supabase.from('message_logs')
+            .update({ status: 'failed' })
+            .eq('twilio_sid', status.id)
+        }
+      }
+      return okResponse
+    }
 
     if (!messages || messages.length === 0) return okResponse
 
@@ -305,10 +325,11 @@ Deno.serve(async (req) => {
       const introReply = lang === 'sw'
         ? `Hapa kuna video za mazoezi ya leo:`
         : `Here are today's exercise demonstration videos:`
-      await sendWhatsApp(from, introReply)
+      const introResult = await sendWhatsApp(from, introReply)
       await supabase.from('message_logs').insert({
         patient_id: patient.id, direction: 'outbound',
-        message_type: 'video_request', content: introReply
+        message_type: 'video_request', content: introReply,
+        twilio_sid: introResult?.messages?.[0]?.id ?? null
       })
 
       for (const ex of videos) {
@@ -329,6 +350,7 @@ Deno.serve(async (req) => {
         await supabase.from('message_logs').insert({
           patient_id: patient.id, direction: 'outbound',
           message_type: 'exercise_video', status: sendResult ? 'sent' : 'failed',
+          twilio_sid: sendResult?.messages?.[0]?.id ?? null,
           content: ex.video_url
         })
       }

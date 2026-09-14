@@ -374,6 +374,7 @@ Deno.serve(async (req) => {
           await supabase.from('message_logs').insert({
             patient_id: patient.id, direction: 'outbound',
             message_type: 'exercise_video', status: sendResult ? 'sent' : 'failed',
+            twilio_sid: sendResult?.messages?.[0]?.id ?? null,
             content: pe.exercises.video_url
           })
 

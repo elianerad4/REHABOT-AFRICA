@@ -5,6 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Every DB-sourced value below is interpolated into the report HTML, which
+// the frontend renders via document.write/iframe srcDoc — escape anything
+// that isn't a number our own code computed, or a patient-controlled field
+// (name, diagnosis, phone) becomes a stored XSS against the viewing physio.
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -253,7 +266,7 @@ Deno.serve(async (req) => {
     </div>
     <div class="report-meta">
       <strong>Weekly Report</strong><br>
-      ${week_start} to ${week_end}<br>
+      ${escapeHtml(week_start)} to ${escapeHtml(week_end)}<br>
       Generated: ${new Date().toLocaleDateString('en-GB')}
     </div>
   </div>
@@ -261,12 +274,12 @@ Deno.serve(async (req) => {
   <div class="patient-info">
     <h2>Patient Information</h2>
     <div class="info-grid">
-      <div class="info-item"><strong>Name:</strong> ${patient.full_name}</div>
-      <div class="info-item"><strong>Phone:</strong> ${patient.phone_number}</div>
-      <div class="info-item"><strong>Diagnosis:</strong> ${patient.diagnosis}</div>
+      <div class="info-item"><strong>Name:</strong> ${escapeHtml(patient.full_name)}</div>
+      <div class="info-item"><strong>Phone:</strong> ${escapeHtml(patient.phone_number)}</div>
+      <div class="info-item"><strong>Diagnosis:</strong> ${escapeHtml(patient.diagnosis)}</div>
       <div class="info-item"><strong>Language:</strong> ${patient.language === 'sw' ? 'Swahili' : 'English'}</div>
-      <div class="info-item"><strong>Status:</strong> ${patient.status}</div>
-      <div class="info-item"><strong>Clinic:</strong> ${patient.profiles?.clinic_name ?? 'N/A'}</div>
+      <div class="info-item"><strong>Status:</strong> ${escapeHtml(patient.status)}</div>
+      <div class="info-item"><strong>Clinic:</strong> ${escapeHtml(patient.profiles?.clinic_name ?? 'N/A')}</div>
     </div>
   </div>
 
@@ -336,7 +349,7 @@ Deno.serve(async (req) => {
 
   <div class="section" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:15px;">
     <h3>AI-Generated Summary</h3>
-    <p style="font-size:13px;">${aiSummary}</p>
+    <p style="font-size:13px;">${escapeHtml(aiSummary)}</p>
     <p style="font-size:11px;color:#6b7280;">Automatically generated summary for clinical decision support. The underlying data is shown above; always verify against raw data.</p>
   </div>
 

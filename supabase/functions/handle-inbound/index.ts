@@ -42,12 +42,13 @@ async function sendWhatsApp(to: string, message: string) {
     }
   )
   const result = await response.json()
-  console.log('Meta API response:', JSON.stringify(result))
   if (!response.ok || result.error) {
+    console.error('Meta text send failed:', response.status, result.error?.message ?? result.error)
     throw new Error(
       `Meta text error: ${result.error?.message ?? `HTTP ${response.status}`}`
     )
   }
+  console.log('Meta text sent, id:', result.messages?.[0]?.id)
   return result
 }
 
@@ -109,11 +110,11 @@ async function sendWhatsAppVideo(to: string, link: string, caption?: string) {
       }
     )
     const result = await response.json()
-    console.log('Meta API response:', JSON.stringify(result))
     if (!response.ok || result.error) {
       console.error(`Video send failed (${caption}): ${result.error?.message ?? `HTTP ${response.status}`}`)
       return null
     }
+    console.log(`Video sent (${caption}), id:`, result.messages?.[0]?.id)
     return result
   } catch (err) {
     console.error(`Video send error (${caption}): ${err.message}`)
@@ -194,7 +195,6 @@ Deno.serve(async (req) => {
     )
 
     const payload = JSON.parse(rawBody)
-    console.log('Payload:', JSON.stringify(payload))
 
     const entry = payload.entry?.[0]
     const changes = entry?.changes?.[0]
@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
     // free text — so a patient tapping "Watch Video" never has to type it.
     const messageBody = (message.text?.body ?? message.button?.payload ?? '').trim()
 
-    console.log('From:', from, 'Message:', messageBody)
+    console.log('Inbound message received, length:', messageBody.length)
     if (!from || !messageBody) return okResponse
 
     const { data: patientRows } = await supabase
@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
     const patient = patientRows?.[0]
 
     if (!patient) {
-      console.log('Patient not found:', from)
+      console.log('Inbound message from a number with no matching active patient')
       return okResponse
     }
 

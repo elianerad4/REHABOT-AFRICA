@@ -161,22 +161,14 @@ Deno.serve(async (req) => {
     return new Response('ok', { status: 200 })
   }
 
-  // TEMPORARY DIAGNOSTIC — read-only check of the Meta credentials against
-  // the phone number ID. Sends nothing to any patient. Remove once the
-  // reminder-sending failure is resolved.
-  const url = new URL(req.url)
-  if (url.searchParams.get('diagnostic') === '1') {
-    const phoneNumberId = Deno.env.get('META_PHONE_NUMBER_ID')
-    const accessToken = Deno.env.get('META_ACCESS_TOKEN')
-    const res = await fetch(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    )
-    const body = await res.json()
-    return new Response(
-      JSON.stringify({ phone_number_id_used: phoneNumberId, http_status: res.status, meta_response: body }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
+  // This function is public (verify_jwt=false in config.toml, required since
+  // Supabase's scheduler doesn't send a user JWT) and, unauthenticated, sends
+  // real WhatsApp messages to every active patient across every clinic. Gate
+  // it with a shared secret only the scheduled job knows, so it can't be
+  // triggered by anyone who finds the URL.
+  const cronSecret = Deno.env.get('CRON_SECRET')
+  if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+    return new Response('Unauthorized', { status: 401 })
   }
 
   try {
@@ -222,19 +214,11 @@ Deno.serve(async (req) => {
       if (!patient.reminder_time) {
         // Default to 8am if no reminder time set
         const defaultReminder = 8 * 60
-        const matches = defaultReminder <= currentMinutesOfDay
-        console.log(
-          `Patient ${patient.full_name}: reminder=default-08:00, now=${eatHour}:${String(eatMinute).padStart(2, '0')}, matches=${matches}`
-        )
-        return matches
+        return defaultReminder <= currentMinutesOfDay
       }
       const [h, m] = patient.reminder_time.split(':').map((n: string) => parseInt(n))
       const reminderMinutesOfDay = (h || 0) * 60 + (m || 0)
-      const matches = reminderMinutesOfDay <= currentMinutesOfDay
-      console.log(
-        `Patient ${patient.full_name}: reminder=${patient.reminder_time}, now=${eatHour}:${String(eatMinute).padStart(2, '0')}, matches=${matches}`
-      )
-      return matches
+      return reminderMinutesOfDay <= currentMinutesOfDay
     })
 
     console.log(`Patients to notify this hour: ${patientsToNotify.length}`)
@@ -255,12 +239,12 @@ Deno.serve(async (req) => {
       // If the guard check itself fails, fail safe: skip this run rather than
       // risk sending a duplicate reminder. A later cron run will retry.
       if (guardError) {
-        console.error(`Guard query failed for ${patient.full_name} — skipping this run to avoid a duplicate: ${guardError.message}`)
+        console.error(`Guard query failed for patient ${patient.id} — skipping this run to avoid a duplicate: ${guardError.message}`)
         continue
       }
 
       if (existingLog) {
-        console.log(`Already reminded ${patient.full_name} today — skipping`)
+        console.log(`Already reminded patient ${patient.id} today — skipping`)
         continue
       }
 
@@ -278,7 +262,7 @@ Deno.serve(async (req) => {
       const clinicName = patient.clinics?.name ?? 'Rehabot Africa'
       const exerciseText = hasExercises ? exerciseList : 'No exercises assigned.'
 
-      console.log(`Sending to ${patient.full_name} at ${patient.phone_number}`)
+      console.log(`Sending reminder to patient ${patient.id}`)
 
       // Send via an approved WhatsApp template (required for outbound
       // business-initiated messages outside the 24h window).
@@ -323,16 +307,16 @@ Deno.serve(async (req) => {
           components
         )
       } catch (err) {
-        console.error(`Template send failed for ${patient.full_name}: ${err.message} — trying free-form fallback`)
+        console.error(`Template send failed for patient ${patient.id}: ${err.message} — trying free-form fallback`)
         try {
           await sendWhatsAppText(patient.phone_number, fallbackBody)
         } catch (fallbackErr) {
-          console.error(`Free-form fallback failed for ${patient.full_name}: ${fallbackErr.message}`)
+          console.error(`Free-form fallback failed for patient ${patient.id}: ${fallbackErr.message}`)
           continue
         }
       }
 
-      console.log(`Reminder sent to ${patient.full_name}`)
+      console.log(`Reminder sent to patient ${patient.id}`)
 
       await supabase.from('message_logs').insert({
         patient_id: patient.id,
@@ -370,7 +354,7 @@ Deno.serve(async (req) => {
             continue
           }
 
-          console.log(`Sending video for ${exerciseName} to ${patient.full_name}`)
+          console.log(`Sending video for ${exerciseName} to patient ${patient.id}`)
 
           const sendResult = await sendWhatsAppVideo(
             patient.phone_number,
@@ -401,7 +385,7 @@ Deno.serve(async (req) => {
         })
 
       if (adherenceError) {
-        console.log(`Adherence log already exists for ${patient.full_name} today — skipping`)
+        console.log(`Adherence log already exists for patient ${patient.id} today — skipping`)
       }
 
       sent++

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts'
-import { Plus, TrendingUp, Activity, MessageSquare, Dumbbell, X } from 'lucide-react'
+import { Plus, TrendingUp, Activity, MessageSquare, Dumbbell, X, ArrowLeft, Search } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import TopBar from '../components/layout/TopBar'
 import Card, { CardHeader } from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
@@ -13,6 +14,7 @@ import Badge from '../components/ui/Badge'
 import Tabs from '../components/ui/Tabs'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
 import Textarea from '../components/ui/Textarea'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
@@ -22,17 +24,25 @@ const CHART_PRIMARY = '#0D9488'
 export default function PatientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [patient, setPatient] = useState(null)
   const [painLogs, setPainLogs] = useState([])
   const [adherenceLogs, setAdherenceLogs] = useState([])
   const [messages, setMessages] = useState([])
   const [exercises, setExercises] = useState([])
+  const [categories, setCategories] = useState([])
+  const [categoryMap, setCategoryMap] = useState([])
   const [patientExercises, setPatientExercises] = useState([])
   const [loading, setLoading] = useState(true)
   const [exercisesLoading, setExercisesLoading] = useState(false)
   const [showAddExercise, setShowAddExercise] = useState(false)
   const [newExerciseName, setNewExerciseName] = useState('')
   const [newExerciseDescription, setNewExerciseDescription] = useState('')
+  const [newExerciseCategoryId, setNewExerciseCategoryId] = useState('')
+  const [assignCategoryId, setAssignCategoryId] = useState('')
+  const [assignSearch, setAssignSearch] = useState('')
+  const [configuring, setConfiguring] = useState(null) // exercise being prescribed
+  const [dosage, setDosage] = useState({ sets: 3, reps: 10, frequency_per_week: 5 })
   const [reminderTime, setReminderTime] = useState('')
   const [reminderSaveStatus, setReminderSaveStatus] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
@@ -44,13 +54,17 @@ export default function PatientDetail() {
       { data: adherenceData },
       { data: messageData },
       { data: exerciseData },
+      { data: categoryData },
+      { data: categoryMapData },
       { data: patientExerciseData }
     ] = await Promise.all([
       supabase.from('patients').select('*').eq('id', id).single(),
       supabase.from('pain_logs').select('*').eq('patient_id', id).order('logged_at', { ascending: true }).limit(14),
       supabase.from('adherence_logs').select('*').eq('patient_id', id).order('log_date', { ascending: false }).limit(7),
       supabase.from('message_logs').select('*').eq('patient_id', id).order('sent_at', { ascending: false }).limit(20),
-      supabase.from('exercises').select('*').eq('is_global', true).order('name_en'),
+      supabase.from('exercises').select('*').eq('is_global', true).eq('is_active', true).order('name_en'),
+      supabase.from('exercise_categories').select('*').eq('is_active', true).order('display_order'),
+      supabase.from('exercise_category_map').select('exercise_id, category_id'),
       supabase.from('patient_exercises').select('*, exercise:exercises(*)').eq('patient_id', id)
     ])
 
@@ -59,6 +73,8 @@ export default function PatientDetail() {
     setAdherenceLogs(adherenceData ?? [])
     setMessages(messageData ?? [])
     setExercises(exerciseData ?? [])
+    setCategories(categoryData ?? [])
+    setCategoryMap(categoryMapData ?? [])
     setPatientExercises(patientExerciseData ?? [])
     setReminderTime(patientData?.reminder_time?.slice(0, 5) ?? '')
     setLoading(false)
@@ -66,13 +82,51 @@ export default function PatientDetail() {
 
   useEffect(() => {
     fetchAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  async function assignExercise(exerciseId) {
+  const exerciseIdsByCategory = useMemo(() => {
+    const m = new Map()
+    for (const row of categoryMap) {
+      if (!m.has(row.category_id)) m.set(row.category_id, new Set())
+      m.get(row.category_id).add(row.exercise_id)
+    }
+    return m
+  }, [categoryMap])
+
+  const alreadyAssignedIds = useMemo(() => new Set(patientExercises.map((pe) => pe.exercise_id)), [patientExercises])
+
+  const assignableExercises = useMemo(() => {
+    if (!assignCategoryId) return []
+    const ids = exerciseIdsByCategory.get(assignCategoryId) ?? new Set()
+    const q = assignSearch.trim().toLowerCase()
+    return exercises
+      .filter((ex) => ids.has(ex.id) && !alreadyAssignedIds.has(ex.id))
+      .filter((ex) => !q || [ex.name_en, ex.name_sw, ex.description_en].filter(Boolean).join(' ').toLowerCase().includes(q))
+  }, [assignCategoryId, exercises, exerciseIdsByCategory, assignSearch, alreadyAssignedIds])
+
+  function beginConfigure(exercise) {
+    setConfiguring(exercise)
+    setDosage({
+      sets: exercise.default_sets ?? 3,
+      reps: exercise.default_reps ?? 10,
+      frequency_per_week: exercise.default_frequency_per_week ?? 5
+    })
+  }
+
+  async function confirmAssign() {
+    if (!configuring) return
     setExercisesLoading(true)
-    await supabase.from('patient_exercises').insert({ patient_id: id, exercise_id: exerciseId, sets: 3, reps: 10, frequency_per_week: 5 })
+    await supabase.from('patient_exercises').insert({
+      patient_id: id,
+      exercise_id: configuring.id,
+      sets: dosage.sets,
+      reps: dosage.reps,
+      frequency_per_week: dosage.frequency_per_week
+    })
     const { data } = await supabase.from('patient_exercises').select('*, exercise:exercises(*)').eq('patient_id', id)
     setPatientExercises(data ?? [])
+    setConfiguring(null)
     setExercisesLoading(false)
   }
 
@@ -88,12 +142,25 @@ export default function PatientDetail() {
     setExercisesLoading(true)
     const { data } = await supabase
       .from('exercises')
-      .insert({ name_en: newExerciseName.trim(), description_en: newExerciseDescription.trim(), is_global: true })
+      .insert({
+        name_en: newExerciseName.trim(),
+        description_en: newExerciseDescription.trim(),
+        is_global: true,
+        created_by: user.id
+      })
       .select()
       .single()
-    if (data) setExercises((prev) => [...prev, data])
+    if (data) {
+      if (newExerciseCategoryId) {
+        await supabase.from('exercise_category_map').insert({ exercise_id: data.id, category_id: newExerciseCategoryId })
+        setCategoryMap((prev) => [...prev, { exercise_id: data.id, category_id: newExerciseCategoryId }])
+      }
+      setExercises((prev) => [...prev, data])
+      setAssignCategoryId(newExerciseCategoryId || assignCategoryId)
+    }
     setNewExerciseName('')
     setNewExerciseDescription('')
+    setNewExerciseCategoryId('')
     setShowAddExercise(false)
     setExercisesLoading(false)
   }
@@ -337,12 +404,12 @@ export default function PatientDetail() {
 
             <Card>
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-semibold text-neutral-900 dark:text-white">Exercise Library</h3>
+                <h3 className="font-semibold text-neutral-900 dark:text-white">Assign Exercise</h3>
                 <Button variant="ghost" size="sm" icon={Plus} onClick={() => setShowAddExercise((v) => !v)}>
                   New Exercise
                 </Button>
               </div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Global exercises — assign to this patient</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Choose a condition/category, then search or browse within it.</p>
 
               {showAddExercise && (
                 <div className="mb-4 p-4 bg-primary-50/60 dark:bg-primary-500/5 border border-primary-100 dark:border-primary-500/20 rounded-lg space-y-3">
@@ -354,39 +421,81 @@ export default function PatientDetail() {
                   </div>
                   <Input placeholder="Exercise name" value={newExerciseName} onChange={(e) => setNewExerciseName(e.target.value)} />
                   <Textarea placeholder="Description (optional)" rows={2} value={newExerciseDescription} onChange={(e) => setNewExerciseDescription(e.target.value)} />
+                  <Select value={newExerciseCategoryId} onChange={(e) => setNewExerciseCategoryId(e.target.value)}>
+                    <option value="">No category (add later from the Exercise Library)</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
                   <div className="flex gap-2">
                     <Button size="sm" loading={exercisesLoading} disabled={!newExerciseName.trim()} onClick={addNewExercise}>
                       Save Exercise
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setShowAddExercise(false); setNewExerciseName(''); setNewExerciseDescription('') }}>
+                    <Button variant="ghost" size="sm" onClick={() => { setShowAddExercise(false); setNewExerciseName(''); setNewExerciseDescription(''); setNewExerciseCategoryId('') }}>
                       Cancel
                     </Button>
                   </div>
                 </div>
               )}
 
-              {exercises.length === 0 ? (
-                <EmptyState icon={Dumbbell} title="No exercises in the library" />
-              ) : (
-                <div className="grid gap-3">
-                  {exercises
-                    .filter((ex) => !patientExercises.some((pe) => pe.exercise_id === ex.id))
-                    .map((ex) => (
-                      <div key={ex.id} className="flex items-center justify-between p-3 border border-neutral-100 dark:border-neutral-800 rounded-lg hover:border-primary-200 dark:hover:border-primary-500/40 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-neutral-900 dark:text-white text-sm">{ex.name_en}</p>
-                          <p className="text-xs text-neutral-400 dark:text-neutral-500">{ex.name_sw}</p>
-                          {ex.description_en && <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{ex.description_en}</p>}
-                        </div>
-                        <Button variant="ghost" size="sm" disabled={exercisesLoading} onClick={() => assignExercise(ex.id)}>
-                          Assign
-                        </Button>
-                      </div>
-                    ))}
-                  {exercises.filter((ex) => !patientExercises.some((pe) => pe.exercise_id === ex.id)).length === 0 && (
-                    <p className="text-center text-sm text-neutral-400 dark:text-neutral-500 py-4">All exercises are already assigned.</p>
-                  )}
+              {configuring ? (
+                <div className="p-4 bg-primary-50/60 dark:bg-primary-500/5 border border-primary-100 dark:border-primary-500/20 rounded-lg">
+                  <button onClick={() => setConfiguring(null)} className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 mb-3">
+                    <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} /> Back to results
+                  </button>
+                  <p className="font-medium text-neutral-900 dark:text-white text-sm mb-1">{configuring.name_en}</p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Set this patient's dosage — the library's default is only a starting template.</p>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <Input label="Sets" type="number" min="0" value={dosage.sets} onChange={(e) => setDosage((d) => ({ ...d, sets: e.target.value }))} />
+                    <Input label="Reps" type="number" min="0" value={dosage.reps} onChange={(e) => setDosage((d) => ({ ...d, reps: e.target.value }))} />
+                    <Input label="×/week" type="number" min="0" value={dosage.frequency_per_week} onChange={(e) => setDosage((d) => ({ ...d, frequency_per_week: e.target.value }))} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" loading={exercisesLoading} onClick={confirmAssign}>Assign to patient</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfiguring(null)}>Cancel</Button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                    <Select value={assignCategoryId} onChange={(e) => { setAssignCategoryId(e.target.value); setAssignSearch('') }} className="sm:w-56">
+                      <option value="">Choose a category…</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({exerciseIdsByCategory.get(c.id)?.size ?? 0})</option>
+                      ))}
+                    </Select>
+                    {assignCategoryId && (
+                      <Input
+                        icon={Search}
+                        value={assignSearch}
+                        onChange={(e) => setAssignSearch(e.target.value)}
+                        placeholder="Search within this category…"
+                        className="flex-1"
+                      />
+                    )}
+                  </div>
+
+                  {!assignCategoryId ? (
+                    <p className="text-center text-sm text-neutral-400 dark:text-neutral-500 py-6">Pick a category to browse its exercises.</p>
+                  ) : assignableExercises.length === 0 ? (
+                    <p className="text-center text-sm text-neutral-400 dark:text-neutral-500 py-6">No unassigned exercises in this category yet.</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {assignableExercises.map((ex) => (
+                        <div key={ex.id} className="flex items-center justify-between p-3 border border-neutral-100 dark:border-neutral-800 rounded-lg hover:border-primary-200 dark:hover:border-primary-500/40 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-neutral-900 dark:text-white text-sm">{ex.name_en}</p>
+                            <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                              {[ex.difficulty, ex.equipment].filter(Boolean).join(' · ') || ex.name_sw}
+                            </p>
+                            {ex.description_en && <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{ex.description_en}</p>}
+                          </div>
+                          <Button variant="ghost" size="sm" disabled={exercisesLoading} onClick={() => beginConfigure(ex)}>
+                            Select
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Sparkles, ShieldCheck, Plus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import TopBar from '../components/layout/TopBar'
@@ -9,11 +9,18 @@ import StatCard from '../components/ui/StatCard'
 import Card from '../components/ui/Card'
 import Tabs from '../components/ui/Tabs'
 import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
+import Textarea from '../components/ui/Textarea'
 import { Table, THead, Th, Tr, Td } from '../components/ui/Table'
 import EmptyState from '../components/ui/EmptyState'
 import { SkeletonCard } from '../components/ui/Skeleton'
 
 const STATUS_VARIANT = { active: 'success', trial: 'warning', expired: 'danger' }
+
+function slugify(text) {
+  return text.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+}
 
 export default function Admin() {
   const { user } = useAuth()
@@ -22,7 +29,49 @@ export default function Admin() {
   const [authorized, setAuthorized] = useState(false)
   const [stats, setStats] = useState({ totalPhysios: 0, totalPatients: 0, totalMessages: 0, activePatients: 0, trialPhysios: 0, activePhysios: 0 })
   const [physios, setPhysios] = useState([])
+  const [categories, setCategories] = useState([])
+  const [categoryCounts, setCategoryCounts] = useState({})
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [showCategoryForm, setShowCategoryForm] = useState(false)
+  const [editingCategory, setEditingCategory] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+
+  async function fetchCategories() {
+    setCategoriesLoading(true)
+    const [{ data: categoryData }, { data: mapData }] = await Promise.all([
+      supabase.from('exercise_categories').select('*').order('display_order'),
+      supabase.from('exercise_category_map').select('category_id')
+    ])
+    const counts = {}
+    for (const row of mapData ?? []) counts[row.category_id] = (counts[row.category_id] ?? 0) + 1
+    setCategories(categoryData ?? [])
+    setCategoryCounts(counts)
+    setCategoriesLoading(false)
+  }
+
+  async function saveCategory(form) {
+    const payload = {
+      name: form.name.trim(),
+      slug: form.slug.trim() || slugify(form.name),
+      description: form.description.trim() || null,
+      body_region: form.body_region.trim() || null,
+      icon: form.icon.trim() || null,
+      display_order: parseInt(form.display_order, 10) || 0
+    }
+    if (editingCategory?.id) {
+      await supabase.from('exercise_categories').update(payload).eq('id', editingCategory.id)
+    } else {
+      await supabase.from('exercise_categories').insert(payload)
+    }
+    setShowCategoryForm(false)
+    setEditingCategory(null)
+    fetchCategories()
+  }
+
+  async function toggleCategoryActive(category) {
+    await supabase.from('exercise_categories').update({ is_active: !category.is_active }).eq('id', category.id)
+    fetchCategories()
+  }
 
   async function fetchAdminData() {
     const [{ data: physioData }, { data: patientData }, { data: messageData }] = await Promise.all([
@@ -67,6 +116,7 @@ export default function Admin() {
       }
       setAuthorized(true)
       fetchAdminData()
+      fetchCategories()
     }
     checkAdmin()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,7 +178,11 @@ export default function Admin() {
 
         <Tabs
           className="mb-6"
-          tabs={[{ value: 'overview', label: 'Overview' }, { value: 'clinics', label: 'Clinics' }]}
+          tabs={[
+            { value: 'overview', label: 'Overview' },
+            { value: 'clinics', label: 'Clinics' },
+            { value: 'categories', label: 'Exercise Categories' }
+          ]}
           active={activeTab}
           onChange={setActiveTab}
         />
@@ -238,7 +292,146 @@ export default function Admin() {
             )}
           </Card>
         )}
+
+        {activeTab === 'categories' && (
+          <Card padding="none">
+            <div className="flex items-center justify-between p-5 border-b border-neutral-100 dark:border-neutral-800">
+              <div>
+                <h3 className="font-semibold text-neutral-900 dark:text-white">Exercise Categories</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                  Organizational categories for the exercise library. Adding one here makes it available
+                  immediately — no code changes needed.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                icon={Plus}
+                onClick={() => { setEditingCategory(null); setShowCategoryForm((v) => !v) }}
+              >
+                New Category
+              </Button>
+            </div>
+
+            {showCategoryForm && (
+              <div className="p-5 border-b border-neutral-100 dark:border-neutral-800 bg-primary-50/40 dark:bg-primary-500/5">
+                <CategoryForm
+                  category={editingCategory}
+                  onCancel={() => { setShowCategoryForm(false); setEditingCategory(null) }}
+                  onSave={saveCategory}
+                />
+              </div>
+            )}
+
+            {categoriesLoading ? (
+              <div className="p-5"><SkeletonCard /></div>
+            ) : categories.length === 0 ? (
+              <EmptyState title="No categories yet." />
+            ) : (
+              <Table>
+                <THead>
+                  <Th>Category</Th>
+                  <Th>Slug</Th>
+                  <Th>Body region</Th>
+                  <Th>Exercises</Th>
+                  <Th>Status</Th>
+                  <Th>Action</Th>
+                </THead>
+                <tbody>
+                  {categories.map((c) => (
+                    <Tr key={c.id}>
+                      <Td>
+                        <div className="font-medium text-neutral-900 dark:text-white">{c.name}</div>
+                      </Td>
+                      <Td><span className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">{c.slug}</span></Td>
+                      <Td>{c.body_region ?? '—'}</Td>
+                      <Td>{categoryCounts[c.id] ?? 0}</Td>
+                      <Td>
+                        <Badge variant={c.is_active ? 'success' : 'neutral'}>{c.is_active ? 'Active' : 'Inactive'}</Badge>
+                      </Td>
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <button
+                            className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                            onClick={() => { setEditingCategory(c); setShowCategoryForm(true) }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-xs text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 hover:underline"
+                            onClick={() => toggleCategoryActive(c)}
+                          >
+                            {c.is_active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                        </div>
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Card>
+        )}
       </div>
     </div>
+  )
+}
+
+function CategoryForm({ category, onCancel, onSave }) {
+  const [form, setForm] = useState({
+    name: category?.name ?? '',
+    slug: category?.slug ?? '',
+    description: category?.description ?? '',
+    body_region: category?.body_region ?? '',
+    icon: category?.icon ?? '',
+    display_order: category?.display_order ?? 0
+  })
+  const [saving, setSaving] = useState(false)
+  const [slugTouched, setSlugTouched] = useState(!!category?.slug)
+
+  function update(key, value) {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function updateName(value) {
+    setForm((f) => ({ ...f, name: value, slug: slugTouched ? f.slug : slugify(value) }))
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!form.name.trim()) return
+    setSaving(true)
+    await onSave(form)
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium text-neutral-900 dark:text-white text-sm">{category ? 'Edit Category' : 'New Category'}</h4>
+        <button type="button" onClick={onCancel} className="text-neutral-400 hover:text-neutral-600">
+          <X className="w-4 h-4" strokeWidth={2} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Name" required value={form.name} onChange={(e) => updateName(e.target.value)} placeholder="e.g. Shoulder Pain" />
+        <Input
+          label="Slug"
+          required
+          value={form.slug}
+          onChange={(e) => { setSlugTouched(true); update('slug', slugify(e.target.value)) }}
+          placeholder="e.g. shoulder-pain"
+        />
+      </div>
+      <Textarea label="Description" rows={2} value={form.description} onChange={(e) => update('description', e.target.value)} />
+      <div className="grid grid-cols-3 gap-3">
+        <Input label="Body region" value={form.body_region} onChange={(e) => update('body_region', e.target.value)} placeholder="e.g. Shoulder" />
+        <Input label="Icon key" value={form.icon} onChange={(e) => update('icon', e.target.value)} placeholder="e.g. dumbbell" />
+        <Input label="Display order" type="number" value={form.display_order} onChange={(e) => update('display_order', e.target.value)} />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button type="submit" size="sm" loading={saving}>Save Category</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
   )
 }

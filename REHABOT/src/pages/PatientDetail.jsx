@@ -360,7 +360,7 @@ export default function PatientDetail() {
               <EmptyState icon={MessageSquare} title="No messages yet" description="Messages appear once WhatsApp follow-up begins." />
             ) : (
               <div className="divide-y divide-neutral-50 dark:divide-neutral-800">
-                {messages.map((msg) => (
+                {[...messages].reverse().map((msg) => (
                   <div key={msg.id} className={`px-6 py-4 flex gap-4 ${msg.direction === 'outbound' ? '' : 'bg-primary-50/40 dark:bg-primary-500/5'}`}>
                     <Avatar
                       name={msg.direction === 'outbound' ? 'Rehabot' : patient.full_name}

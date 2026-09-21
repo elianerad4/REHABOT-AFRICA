@@ -96,14 +96,24 @@ export default function PatientDetail() {
 
   const alreadyAssignedIds = useMemo(() => new Set(patientExercises.map((pe) => pe.exercise_id)), [patientExercises])
 
+  // "Uncategorized" is computed, not a stored category — it's every exercise
+  // with no row in exercise_category_map. Mirrors ExerciseLibrary.jsx so the
+  // original (pre-taxonomy) exercises are still assignable from here.
+  const categorizedExerciseIds = useMemo(() => new Set(categoryMap.map((r) => r.exercise_id)), [categoryMap])
+  const uncategorizedCount = useMemo(
+    () => exercises.filter((ex) => !categorizedExerciseIds.has(ex.id)).length,
+    [exercises, categorizedExerciseIds]
+  )
+
   const assignableExercises = useMemo(() => {
     if (!assignCategoryId) return []
-    const ids = exerciseIdsByCategory.get(assignCategoryId) ?? new Set()
+    const isUncategorized = assignCategoryId === 'uncategorized'
+    const ids = isUncategorized ? null : (exerciseIdsByCategory.get(assignCategoryId) ?? new Set())
     const q = assignSearch.trim().toLowerCase()
     return exercises
-      .filter((ex) => ids.has(ex.id) && !alreadyAssignedIds.has(ex.id))
+      .filter((ex) => (isUncategorized ? !categorizedExerciseIds.has(ex.id) : ids.has(ex.id)) && !alreadyAssignedIds.has(ex.id))
       .filter((ex) => !q || [ex.name_en, ex.name_sw, ex.description_en].filter(Boolean).join(' ').toLowerCase().includes(q))
-  }, [assignCategoryId, exercises, exerciseIdsByCategory, assignSearch, alreadyAssignedIds])
+  }, [assignCategoryId, exercises, exerciseIdsByCategory, assignSearch, alreadyAssignedIds, categorizedExerciseIds])
 
   function beginConfigure(exercise) {
     setConfiguring(exercise)
@@ -458,6 +468,9 @@ export default function PatientDetail() {
                   <div className="flex flex-col sm:flex-row gap-3 mb-4">
                     <Select value={assignCategoryId} onChange={(e) => { setAssignCategoryId(e.target.value); setAssignSearch('') }} className="sm:w-56">
                       <option value="">Choose a category…</option>
+                      {uncategorizedCount > 0 && (
+                        <option value="uncategorized">Uncategorized ({uncategorizedCount})</option>
+                      )}
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>{c.name} ({exerciseIdsByCategory.get(c.id)?.size ?? 0})</option>
                       ))}

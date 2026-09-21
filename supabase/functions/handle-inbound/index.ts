@@ -122,6 +122,31 @@ async function sendWhatsAppVideo(to: string, link: string, caption?: string) {
   }
 }
 
+// Anthropic's Messages API requires `messages` to start with a user turn and
+// strictly alternate user/assistant. conversation_context rows are written in
+// pairs with an identical created_at, so a tie can return assistant before
+// user; a truncated window (limit 10) can also start on an assistant turn.
+// Either produces a 400 that the caller previously swallowed, leaving the
+// patient with no reply. Collapse consecutive same-role turns, drop any
+// leading assistant turn, and skip empty content.
+function normalizeHistory(history: { role: string; content: string }[]) {
+  const out: { role: 'user' | 'assistant'; content: string }[] = []
+  for (const msg of history) {
+    if (!msg || (msg.role !== 'user' && msg.role !== 'assistant')) continue
+    const content = typeof msg.content === 'string' ? msg.content.trim() : ''
+    if (!content) continue
+    if (out.length === 0) {
+      if (msg.role !== 'user') continue
+      out.push({ role: 'user', content })
+    } else if (out[out.length - 1].role === msg.role) {
+      out[out.length - 1].content += `\n${content}`
+    } else {
+      out.push({ role: msg.role, content })
+    }
+  }
+  return out
+}
+
 async function getClaudeResponse(
   patientName: string,
   diagnosis: string,
@@ -144,11 +169,16 @@ async function getClaudeResponse(
       model: 'claude-sonnet-4-6',
       max_tokens: 300,
       system: systemPrompt,
-      messages: [...history, { role: 'user', content: userMessage }]
+      messages: normalizeHistory([...history, { role: 'user', content: userMessage }])
     })
   })
   const data = await response.json()
-  return data.content[0].text
+  if (!response.ok || data.error) {
+    throw new Error(`Anthropic API error (${response.status}): ${data.error?.message ?? 'unknown error'}`)
+  }
+  const text = data.content?.find((block: any) => block.type === 'text')?.text
+  if (!text) throw new Error('Anthropic API returned no text content')
+  return text
 }
 
 Deno.serve(async (req) => {
@@ -178,11 +208,17 @@ Deno.serve(async (req) => {
     // then, log loudly rather than breaking the live webhook — see the
     // deploy notes for the one-time setup step (set META_APP_SECRET from the
     // Meta App dashboard, then this becomes a hard rejection).
-    const appSecret = Deno.env.get('META_APP_SECRET')
+    // Trim: a secret set via the CLI/dashboard can pick up a trailing newline
+    // or space, which changes the HMAC key and makes every genuine Meta
+    // signature fail verification (silently killing all inbound messages).
+    const appSecret = Deno.env.get('META_APP_SECRET')?.trim()
     if (appSecret) {
       const valid = await verifyMetaSignature(rawBody, req.headers.get('x-hub-signature-256'), appSecret)
       if (!valid) {
-        console.error('Rejected webhook call: invalid X-Hub-Signature-256')
+        console.error(
+          'Rejected webhook call: invalid X-Hub-Signature-256. ' +
+          'Check that META_APP_SECRET exactly matches the Meta App Secret (not the verify token).'
+        )
         return new Response('Forbidden', { status: 403 })
       }
     } else {
@@ -364,9 +400,17 @@ Deno.serve(async (req) => {
       .order('created_at', { ascending: true })
       .limit(10)
 
-    const aiReply = await getClaudeResponse(
-      patient.full_name, patient.diagnosis, lang, history ?? [], messageBody
-    )
+    let aiReply: string
+    try {
+      aiReply = await getClaudeResponse(
+        patient.full_name, patient.diagnosis, lang, history ?? [], messageBody
+      )
+    } catch (err) {
+      console.error('AI reply failed:', err.message)
+      aiReply = lang === 'sw'
+        ? 'Samahani, siwezi kujibu kwa sasa. Tafadhali jaribu tena baadaye au wasiliana na mtaalamu wako wa tiba ya viungo.'
+        : "Sorry, I can't reply right now. Please try again shortly or contact your physiotherapist."
+    }
 
     await supabase.from('conversation_context').insert([
       { patient_id: patient.id, role: 'user', content: messageBody },

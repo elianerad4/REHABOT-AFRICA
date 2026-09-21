@@ -189,13 +189,23 @@ export default function PatientDetail() {
     const value = reminderTime
     if (!value) return setReminderSaveStatus('')
     if (!/^\d{2}:\d{2}$/.test(value)) return
-    setReminderSaveStatus('saving')
     const time = `${value}:00`
+    if (time === patient?.reminder_time) return setReminderSaveStatus('saved')
+    setReminderSaveStatus('saving')
     const { error } = await supabase.from('patients').update({ reminder_time: time }).eq('id', id)
     if (error) {
       setReminderSaveStatus('error')
       return
     }
+    // send-daily-reminders guards "once per day" purely by the presence of
+    // today's adherence_logs row, so a reminder already sent earlier today
+    // (e.g. from the default 08:00 before a time was set) would block the
+    // newly chosen time. Clear it so the physio can move the time freely and
+    // have it fire today. Today is computed in EAT (UTC+3) to match the
+    // reminder function.
+    const today = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
+    await supabase.from('adherence_logs').delete().eq('patient_id', id).eq('log_date', today)
+    setAdherenceLogs((prev) => prev.filter((l) => l.log_date !== today))
     setPatient({ ...patient, reminder_time: time })
     setReminderSaveStatus('saved')
   }

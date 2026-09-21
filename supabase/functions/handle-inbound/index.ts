@@ -204,25 +204,35 @@ Deno.serve(async (req) => {
   try {
     const rawBody = await req.text()
 
-    // Reject forged webhook calls once META_APP_SECRET is configured. Until
-    // then, log loudly rather than breaking the live webhook — see the
-    // deploy notes for the one-time setup step (set META_APP_SECRET from the
-    // Meta App dashboard, then this becomes a hard rejection).
+    // Signature verification is currently FAIL-OPEN. META_APP_SECRET is set
+    // but does not match the App Secret of the app that owns this webhook, so
+    // hard-rejecting was returning 403 for every genuine Meta message and
+    // killing all inbound traffic (no AI replies, no videos, no pain logs).
+    //
+    // To re-enable enforcement once the correct secret is in place:
+    //   1. supabase secrets set META_APP_SECRET=<App Secret of the app whose
+    //      WhatsApp → Configuration callback URL points at this function>
+    //   2. supabase secrets set META_SIGNATURE_ENFORCE=true
+    // No redeploy needed. A valid signature is still logged when it verifies.
     // Trim: a secret set via the CLI/dashboard can pick up a trailing newline
-    // or space, which changes the HMAC key and makes every genuine Meta
-    // signature fail verification (silently killing all inbound messages).
+    // or space, which changes the HMAC key and breaks verification.
     const appSecret = Deno.env.get('META_APP_SECRET')?.trim()
+    const enforceSignature = Deno.env.get('META_SIGNATURE_ENFORCE') === 'true'
     if (appSecret) {
       const valid = await verifyMetaSignature(rawBody, req.headers.get('x-hub-signature-256'), appSecret)
       if (!valid) {
+        if (enforceSignature) {
+          console.error('Rejected webhook call: invalid X-Hub-Signature-256')
+          return new Response('Forbidden', { status: 403 })
+        }
         console.error(
-          'Rejected webhook call: invalid X-Hub-Signature-256. ' +
-          'Check that META_APP_SECRET exactly matches the Meta App Secret (not the verify token).'
+          'Webhook signature did NOT verify — accepting anyway because ' +
+          'META_SIGNATURE_ENFORCE is not "true". Set META_APP_SECRET to the ' +
+          'correct App Secret, then set META_SIGNATURE_ENFORCE=true.'
         )
-        return new Response('Forbidden', { status: 403 })
       }
     } else {
-      console.error('META_APP_SECRET is not set — webhook signature is NOT being verified. Set this secret to prevent forged inbound messages.')
+      console.error('META_APP_SECRET is not set — webhook signature is NOT being verified.')
     }
 
     const supabase = createClient(

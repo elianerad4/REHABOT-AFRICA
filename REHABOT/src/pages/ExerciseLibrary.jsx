@@ -63,6 +63,9 @@ export default function ExerciseLibrary() {
   const [selected, setSelected] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [bulkSelected, setBulkSelected] = useState(() => new Set())
+  const [bulkTarget, setBulkTarget] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   async function fetchAll() {
     const [{ data: catData }, { data: exerciseData }, { data: mapData }, { data: profile }] = await Promise.all([
@@ -82,6 +85,11 @@ export default function ExerciseLibrary() {
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setBulkSelected(new Set())
+    setBulkTarget('')
+  }, [activeCategory])
 
   const exerciseIdsByCategory = useMemo(() => {
     const m = new Map()
@@ -171,11 +179,37 @@ export default function ExerciseLibrary() {
     fetchAll()
   }
 
+  function toggleBulkSelect(id) {
+    setBulkSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function clearBulk() {
+    setBulkSelected(new Set())
+    setBulkTarget('')
+  }
+
+  async function handleBulkAssign() {
+    if (!bulkTarget || bulkSelected.size === 0) return
+    setBulkSaving(true)
+    const rows = [...bulkSelected].map((exercise_id) => ({ exercise_id, category_id: bulkTarget }))
+    await supabase.from('exercise_category_map').upsert(rows, { onConflict: 'exercise_id,category_id' })
+    setBulkSaving(false)
+    clearBulk()
+    fetchAll()
+  }
+
   const headerTitle = !activeCategory
     ? 'Rehabilitation Exercise Library'
     : activeCategory === 'uncategorized'
       ? 'Uncategorized Exercises'
       : `${activeCategory.name} Exercises`
+
+  const bulkSelectable = isAdmin && activeCategory === 'uncategorized'
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
@@ -266,6 +300,18 @@ export default function ExerciseLibrary() {
               {filtered.length} exercise{filtered.length === 1 ? '' : 's'}
             </p>
 
+            {bulkSelectable && bulkSelected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20 rounded-xl">
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-200">{bulkSelected.size} selected</span>
+                <Select value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)} className="sm:w-56">
+                  <option value="">Choose category…</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+                <Button size="sm" onClick={handleBulkAssign} loading={bulkSaving} disabled={!bulkTarget}>Assign to category</Button>
+                <Button size="sm" variant="ghost" onClick={clearBulk}>Clear</Button>
+              </div>
+            )}
+
             {filtered.length === 0 ? (
               <div className="bg-white dark:bg-surface-dark-raised rounded-xl border border-neutral-200 dark:border-neutral-800">
                 <EmptyState
@@ -277,32 +323,42 @@ export default function ExerciseLibrary() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filtered.map((ex) => (
-                  <button
-                    key={ex.id}
-                    onClick={() => setSelected(ex)}
-                    className="text-left bg-white dark:bg-surface-dark-raised rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-card p-5 hover:border-primary-300 dark:hover:border-primary-500/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
-                  >
-                    <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge variant={ex.video_url ? 'primary' : 'neutral'} dot>
-                          {ex.video_url ? 'Has video' : 'No video'}
-                        </Badge>
-                        {ex.difficulty && <Badge variant={DIFFICULTY_VARIANT[ex.difficulty]}>{DIFFICULTY_LABEL[ex.difficulty]}</Badge>}
+                  <div key={ex.id} className="relative">
+                    {bulkSelectable && (
+                      <input
+                        type="checkbox"
+                        checked={bulkSelected.has(ex.id)}
+                        onChange={() => toggleBulkSelect(ex.id)}
+                        aria-label={`Select ${ex.name_en}`}
+                        className="absolute top-3 left-3 z-10 h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                      />
+                    )}
+                    <button
+                      onClick={() => setSelected(ex)}
+                      className="text-left w-full bg-white dark:bg-surface-dark-raised rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-card p-5 hover:border-primary-300 dark:hover:border-primary-500/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+                    >
+                      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant={ex.video_url ? 'primary' : 'neutral'} dot>
+                            {ex.video_url ? 'Has video' : 'No video'}
+                          </Badge>
+                          {ex.difficulty && <Badge variant={DIFFICULTY_VARIANT[ex.difficulty]}>{DIFFICULTY_LABEL[ex.difficulty]}</Badge>}
+                        </div>
+                        {isAdmin && (
+                          <span
+                            onClick={(e) => { e.stopPropagation(); openForm(ex) }}
+                            className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                          >
+                            Edit
+                          </span>
+                        )}
                       </div>
-                      {isAdmin && (
-                        <span
-                          onClick={(e) => { e.stopPropagation(); openForm(ex) }}
-                          className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
-                        >
-                          Edit
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="font-display font-semibold text-neutral-900 dark:text-white text-base mb-1">{ex.name_en}</h3>
-                    {ex.name_sw && <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-2">{ex.name_sw}</p>}
-                    {ex.description_en && <p className="text-sm text-neutral-600 dark:text-neutral-300 line-clamp-2 mb-2">{ex.description_en}</p>}
-                    {ex.equipment && <p className="text-xs text-neutral-400 dark:text-neutral-500">Equipment: {ex.equipment}</p>}
-                  </button>
+                      <h3 className="font-display font-semibold text-neutral-900 dark:text-white text-base mb-1">{ex.name_en}</h3>
+                      {ex.name_sw && <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-2">{ex.name_sw}</p>}
+                      {ex.description_en && <p className="text-sm text-neutral-600 dark:text-neutral-300 line-clamp-2 mb-2">{ex.description_en}</p>}
+                      {ex.equipment && <p className="text-xs text-neutral-400 dark:text-neutral-500">Equipment: {ex.equipment}</p>}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

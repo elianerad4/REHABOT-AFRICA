@@ -119,7 +119,14 @@ export default function AddPatient() {
     })
 
     if (insertError) {
-      setError(insertError.message)
+      if (
+        insertError.code === '23505' &&
+        (insertError.message ?? '').includes('patients_phone_number_active_unique')
+      ) {
+        setError('A patient with this phone number is already active. Please search for the existing record instead of creating a new one.')
+      } else {
+        setError(insertError.message)
+      }
       setLoading(false)
       return
     }

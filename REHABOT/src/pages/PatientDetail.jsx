@@ -46,6 +46,7 @@ export default function PatientDetail() {
   const [dosage, setDosage] = useState({ sets: 3, reps: 10, frequency_per_week: 5 })
   const [reminderTime, setReminderTime] = useState('')
   const [reminderSaveStatus, setReminderSaveStatus] = useState('')
+  const [statusError, setStatusError] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
 
   async function fetchAll() {
@@ -181,7 +182,19 @@ export default function PatientDetail() {
   }
 
   async function updateStatus(newStatus) {
-    await supabase.from('patients').update({ status: newStatus }).eq('id', id)
+    const { error } = await supabase.from('patients').update({ status: newStatus }).eq('id', id)
+    if (error) {
+      if (
+        error.code === '23505' &&
+        (error.message ?? '').includes('patients_phone_number_active_unique')
+      ) {
+        setStatusError('A patient with this phone number is already active. Please search for the existing record instead of creating a new one.')
+      } else {
+        setStatusError(error.message)
+      }
+      return
+    }
+    setStatusError('')
     setPatient({ ...patient, status: newStatus })
   }
 
@@ -298,6 +311,12 @@ export default function PatientDetail() {
             <option value="discharged">Discharged</option>
           </select>
         </div>
+
+        {statusError && (
+          <div role="alert" className="flex items-start gap-2.5 bg-danger-50 dark:bg-danger-500/10 border border-red-200 dark:border-red-900 text-danger-600 dark:text-red-300 rounded-lg px-4 py-3 text-sm mb-6">
+            {statusError}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[

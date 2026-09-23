@@ -33,6 +33,7 @@ export default function PatientDetail() {
   const [categories, setCategories] = useState([])
   const [categoryMap, setCategoryMap] = useState([])
   const [patientExercises, setPatientExercises] = useState([])
+  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [exercisesLoading, setExercisesLoading] = useState(false)
   const [showAddExercise, setShowAddExercise] = useState(false)
@@ -56,7 +57,8 @@ export default function PatientDetail() {
       { data: exerciseData },
       { data: categoryData },
       { data: categoryMapData },
-      { data: patientExerciseData }
+      { data: patientExerciseData },
+      { data: profileData }
     ] = await Promise.all([
       supabase.from('patients').select('*').eq('id', id).single(),
       supabase.from('pain_logs').select('*').eq('patient_id', id).order('logged_at', { ascending: true }).limit(14),
@@ -65,7 +67,8 @@ export default function PatientDetail() {
       supabase.from('exercises').select('*').eq('is_global', true).eq('is_active', true).order('name_en'),
       supabase.from('exercise_categories').select('*').eq('is_active', true).order('display_order'),
       supabase.from('exercise_category_map').select('exercise_id, category_id'),
-      supabase.from('patient_exercises').select('*, exercise:exercises(*)').eq('patient_id', id)
+      supabase.from('patient_exercises').select('*, exercise:exercises(*)').eq('patient_id', id),
+      supabase.from('profiles').select('is_admin').eq('id', user.id).maybeSingle()
     ])
 
     setPatient(patientData)
@@ -76,6 +79,7 @@ export default function PatientDetail() {
     setCategories(categoryData ?? [])
     setCategoryMap(categoryMapData ?? [])
     setPatientExercises(patientExerciseData ?? [])
+    setIsAdmin(profileData?.is_admin ?? false)
     setReminderTime(patientData?.reminder_time?.slice(0, 5) ?? '')
     setLoading(false)
   }
@@ -148,6 +152,7 @@ export default function PatientDetail() {
   }
 
   async function addNewExercise() {
+    if (!isAdmin) return
     if (!newExerciseName.trim()) return
     setExercisesLoading(true)
     const { data } = await supabase
@@ -425,13 +430,15 @@ export default function PatientDetail() {
             <Card>
               <div className="flex items-center justify-between mb-1">
                 <h3 className="font-semibold text-neutral-900 dark:text-white">Assign Exercise</h3>
-                <Button variant="ghost" size="sm" icon={Plus} onClick={() => setShowAddExercise((v) => !v)}>
-                  New Exercise
-                </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="sm" icon={Plus} onClick={() => setShowAddExercise((v) => !v)}>
+                    New Exercise
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Choose a condition/category, then search or browse within it.</p>
 
-              {showAddExercise && (
+              {isAdmin && showAddExercise && (
                 <div className="mb-4 p-4 bg-primary-50/60 dark:bg-primary-500/5 border border-primary-100 dark:border-primary-500/20 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-neutral-900 dark:text-white text-sm">Add New Exercise</h4>

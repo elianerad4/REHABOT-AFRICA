@@ -108,7 +108,10 @@ Deno.serve(async (req) => {
 
     return new Response('OK', { status: 200 })
   } catch (err) {
-    console.error('textify-webhook error:', err.message)
-    return new Response('Error', { status: 500 })
+    console.error('textify-webhook error:', err?.message ?? err, err?.stack)
+    return new Response(
+      JSON.stringify({ error: String(err?.message ?? err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
   }
 })

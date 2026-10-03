@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts'
-import { Plus, TrendingUp, Activity, MessageSquare, Dumbbell, X, ArrowLeft, Search } from 'lucide-react'
+import { Plus, TrendingUp, Activity, MessageSquare, MessageSquareText, Dumbbell, X, ArrowLeft, Search } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import TopBar from '../components/layout/TopBar'
@@ -18,6 +18,7 @@ import Select from '../components/ui/Select'
 import Textarea from '../components/ui/Textarea'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
+import CommunicationPanel from '../components/CommunicationPanel'
 
 const CHART_PRIMARY = '#0D9488'
 
@@ -46,8 +47,11 @@ export default function PatientDetail() {
   const [dosage, setDosage] = useState({ sets: 3, reps: 10, frequency_per_week: 5 })
   const [reminderTime, setReminderTime] = useState('')
   const [reminderSaveStatus, setReminderSaveStatus] = useState('')
+  const reminderSaveTimer = useRef(null)
   const [statusError, setStatusError] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
+  const [commRefresh, setCommRefresh] = useState(0)
+  const [smsSendStatus, setSmsSendStatus] = useState('')
 
   async function fetchAll() {
     const [
@@ -89,6 +93,12 @@ export default function PatientDetail() {
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  useEffect(() => {
+    return () => {
+      if (reminderSaveTimer.current) clearTimeout(reminderSaveTimer.current)
+    }
+  }, [])
 
   const exerciseIdsByCategory = useMemo(() => {
     const m = new Map()
@@ -199,16 +209,29 @@ export default function PatientDetail() {
   }
 
   function handleReminderTimeChange(e) {
-    setReminderTime(e.target.value)
-    setReminderSaveStatus('')
+    const value = e.target.value
+    setReminderTime(value)
+    setReminderSaveStatus(value ? 'saving' : '')
+    if (reminderSaveTimer.current) clearTimeout(reminderSaveTimer.current)
+    if (value) reminderSaveTimer.current = setTimeout(() => saveReminderTime(value), 500)
   }
 
-  async function saveReminderTime() {
-    const value = reminderTime
-    if (!value) return setReminderSaveStatus('')
+  function handleReminderTimeBlur(e) {
+    if (reminderSaveTimer.current) clearTimeout(reminderSaveTimer.current)
+    saveReminderTime(e.target.value)
+  }
+
+  async function saveReminderTime(value) {
+    if (!value) {
+      setReminderSaveStatus('')
+      return
+    }
     if (!/^\d{2}:\d{2}$/.test(value)) return
     const time = `${value}:00`
-    if (time === patient?.reminder_time) return setReminderSaveStatus('saved')
+    if (time === patient?.reminder_time) {
+      setReminderSaveStatus('saved')
+      return
+    }
     setReminderSaveStatus('saving')
     const { error } = await supabase.from('patients').update({ reminder_time: time }).eq('id', id)
     if (error) {
@@ -224,14 +247,33 @@ export default function PatientDetail() {
     const today = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
     await supabase.from('adherence_logs').delete().eq('patient_id', id).eq('log_date', today)
     setAdherenceLogs((prev) => prev.filter((l) => l.log_date !== today))
-    setPatient({ ...patient, reminder_time: time })
+    setPatient((prev) => ({ ...prev, reminder_time: time }))
     setReminderSaveStatus('saved')
+  }
+
+  async function sendSmsFollowUp() {
+    setSmsSendStatus('sending')
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch(
+      'https://fzousmydjfblmblpwejh.supabase.co/functions/v1/textify-sms',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: id, message_type: 'follow_up' })
+      }
+    )
+    const data = await response.json()
+    if (data.error) {
+      setSmsSendStatus('error')
+    } else {
+      setSmsSendStatus('sent')
+      setCommRefresh((n) => n + 1)
+    }
   }
 
   function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
   }
-
   const adherencePercent = adherenceLogs.length > 0
     ? Math.round((adherenceLogs.filter((l) => l.confirmed).length / adherenceLogs.length) * 100)
     : 0
@@ -292,7 +334,7 @@ export default function PatientDetail() {
                 type="time"
                 value={reminderTime}
                 onChange={handleReminderTimeChange}
-                onBlur={saveReminderTime}
+                onBlur={handleReminderTimeBlur}
                 className="text-xs border border-neutral-300 dark:border-neutral-700 dark:bg-surface-dark-raised dark:text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
               />
             </label>
@@ -337,7 +379,8 @@ export default function PatientDetail() {
           tabs={[
             { value: 'overview', label: 'Overview' },
             { value: 'messages', label: 'Messages' },
-            { value: 'exercises', label: 'Exercises' }
+            { value: 'exercises', label: 'Exercises' },
+            { value: 'communication', label: 'Communication' }
           ]}
           active={activeTab}
           onChange={setActiveTab}
@@ -418,6 +461,31 @@ export default function PatientDetail() {
               </div>
             )}
           </Card>
+        )}
+
+        {activeTab === 'communication' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                Every WhatsApp and SMS touchpoint for this patient, including fallbacks and responses.
+              </p>
+              <div className="flex items-center gap-2">
+                {smsSendStatus === 'sending' && <span className="text-xs text-neutral-400">Sending…</span>}
+                {smsSendStatus === 'sent' && <span className="text-xs text-success-600 dark:text-green-400">SMS follow-up sent</span>}
+                {smsSendStatus === 'error' && <span className="text-xs text-danger-500">Failed to send SMS</span>}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={MessageSquareText}
+                  loading={smsSendStatus === 'sending'}
+                  onClick={sendSmsFollowUp}
+                >
+                  Send SMS follow-up
+                </Button>
+              </div>
+            </div>
+            <CommunicationPanel key={commRefresh} patientId={id} limit={50} />
+          </div>
         )}
 
         {activeTab === 'exercises' && (

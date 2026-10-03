@@ -445,3 +445,21 @@ entrypoint = "./functions/generate-report/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-report/*.html" ]
+
+[functions.textify-sms]
+enabled = true
+verify_jwt = true
+import_map = "./functions/textify-sms/deno.json"
+entrypoint = "./functions/textify-sms/index.ts"
+
+[functions.textify-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/textify-webhook/deno.json"
+entrypoint = "./functions/textify-webhook/index.ts"
+
+[functions.sms-inbound]
+enabled = true
+verify_jwt = false
+import_map = "./functions/sms-inbound/deno.json"
+entrypoint = "./functions/sms-inbound/index.ts"

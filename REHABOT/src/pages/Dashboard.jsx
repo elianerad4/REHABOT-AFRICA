@@ -13,6 +13,7 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { Table, THead, Th, Tr, Td } from '../components/ui/Table'
 import { SkeletonCard, SkeletonTable } from '../components/ui/Skeleton'
+import CommunicationPanel from '../components/CommunicationPanel'
 
 const STATUS_VARIANT = { active: 'success', paused: 'warning', discharged: 'neutral' }
 
@@ -136,6 +137,12 @@ export default function Dashboard() {
             </Table>
           )}
         </div>
+
+        {!loading && patients.length > 0 && (
+          <div className="mt-8">
+            <CommunicationPanel patientIds={patients.map((p) => p.id)} limit={8} />
+          </div>
+        )}
       </div>
     </div>
   )

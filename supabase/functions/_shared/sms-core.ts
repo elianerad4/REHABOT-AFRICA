@@ -2,14 +2,17 @@
 // payload validation and fallback decisions. No Deno/network dependencies.
 
 // Textify message lifecycle, ordered from earliest to most terminal.
+// Matches Textify's statuses: scheduled, sending, processing, processing_status,
+// sent, delivered, undelivered, failed.
 export const STATUS_ORDER: Record<string, number> = {
   scheduled: 0,
   sending: 1,
   processing: 2,
-  sent: 3,
-  delivered: 4,
-  undelivered: 5,
-  failed: 6
+  processing_status: 3,
+  sent: 4,
+  delivered: 5,
+  undelivered: 6,
+  failed: 7
 }
 
 export const TERMINAL_STATUSES = new Set(['delivered', 'undelivered', 'failed'])

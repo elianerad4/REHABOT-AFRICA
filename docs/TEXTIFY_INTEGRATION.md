@@ -135,8 +135,8 @@ Set these as Supabase Edge Function secrets (`supabase secrets set NAME=VALUE`):
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `TEXTIFY_API_KEY` | yes | Textify bearer token (never in client code) |
-| `TEXTIFY_BASE_URL` | no | Default `https://portal.textify.africa/v1` |
-| `TEXTIFY_DEFAULT_SENDER` | no | Sender name (default `REHABOT`) |
+| `TEXTIFY_BASE_URL` | no | Default `https://portal.textify.africa/api/v1` |
+| `TEXTIFY_DEFAULT_SENDER` | no | Must be an **approved** sender (default `Textify`; request `REHABOT` for branding) |
 | `TEXTIFY_WEBHOOK_SECRET` | yes | Shared secret for webhook auth |
 | `TEXTIFY_WEBHOOK_ENFORCE` | no | `true` to hard-reject unauthenticated webhooks |
 | `FALLBACK_AFTER_MINUTES` | no | No-response nudge threshold (default `120`) |

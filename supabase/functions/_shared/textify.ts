@@ -3,13 +3,15 @@
 import { normalizeAndValidatePhone } from './phone.ts'
 import { validateSmsContent } from './sms-core.ts'
 
-export const DEFAULT_TEXTIFY_BASE_URL = 'https://portal.textify.africa/v1'
+// Base URL from the Textify docs. NOTE: it is /api/v1 (not /v1).
+export const DEFAULT_TEXTIFY_BASE_URL = 'https://portal.textify.africa/api/v1'
 
 export class TextifyError extends Error {
   code:
     | 'missing_api_key'
     | 'invalid_phone'
     | 'invalid_request'
+    | 'invalid_sender'
     | 'insufficient_balance'
     | 'provider_error'
     | 'network_error'
@@ -34,8 +36,11 @@ function getBaseUrl(): string {
   return (Deno.env.get('TEXTIFY_BASE_URL') || DEFAULT_TEXTIFY_BASE_URL).replace(/\/$/, '')
 }
 
+// Sender name MUST be an approved/enabled Textify sender. "REHABOT" is not
+// approved; "Textify" is the platform's own default sender and is safe as a
+// fallback until a branded sender is approved.
 function getSenderName(): string {
-  return (Deno.env.get('TEXTIFY_DEFAULT_SENDER') || 'REHABOT').trim()
+  return (Deno.env.get('TEXTIFY_DEFAULT_SENDER') || 'Textify').trim()
 }
 
 export interface SendSmsOptions {
@@ -63,7 +68,37 @@ function classifyProviderError(status: number, body: Record<string, any>): Texti
   if (status === 402 || /balance|insufficient|credit/i.test(String(message))) {
     return new TextifyError('insufficient_balance', 'Textify account has insufficient balance')
   }
+  if (/sender/i.test(String(message))) {
+    return new TextifyError('invalid_sender', 'Textify sender name is not approved or assigned')
+  }
   return new TextifyError('provider_error', `Textify error: ${message}`)
+}
+
+// Textify's Send SMS returns 201 Created with NO body — the message id is NOT
+// returned inline. To correlate delivery-status webhooks we look the message up
+// afterwards via List Messages (by recipient + content) and store its internal
+// `id` (UUID). This is best-effort: any failure just yields a null id and the
+// send is still considered accepted.
+async function findSentMessageId(key: string, receiverLocal: string, content: string): Promise<string | null> {
+  try {
+    // List Messages stores the recipient as 255XXXXXXXX (no +, no leading 0).
+    const receiver255 = '255' + receiverLocal.slice(1)
+    const res = await fetch(`${getBaseUrl()}/messages?limit=10`, {
+      headers: { Authorization: `Bearer ${key}` }
+    })
+    const body = await res.json()
+    const list: any[] = body?.data?.data ?? body?.data ?? []
+    for (const m of list) {
+      const pn = String(m?.phone_number ?? '').replace(/\D/g, '')
+      if (pn === receiver255 && (m?.content ?? '') === content) {
+        return m?.id ?? m?.message_id ?? null
+      }
+    }
+    return null
+  } catch (err) {
+    console.error('findSentMessageId failed (non-fatal):', err?.message ?? err)
+    return null
+  }
 }
 
 export async function sendSms(opts: SendSmsOptions): Promise<SendSmsResult> {
@@ -112,17 +147,13 @@ export async function sendSms(opts: SendSmsOptions): Promise<SendSmsResult> {
     throw classifyProviderError(response.status, body)
   }
 
-  // Textify may return a single id or a per-message array; normalise to the
-  // first available id so callers can correlate status webhooks.
-  const first = Array.isArray(body?.data) ? body.data[0] : body?.data ?? body
-  const providerMessageId =
-    first?.id ?? first?.message_id ?? first?.provider_message_id ?? body?.id ?? null
-
-  console.log(`Textify send ok (scheduled=${isScheduled}) id=${providerMessageId}`)
+  // Accepted. Lifecycle begins at "sending" (non-scheduled) or "scheduled".
+  const providerMessageId = await findSentMessageId(key, receiver, content)
+  console.log(`Textify send accepted (scheduled=${isScheduled}) id=${providerMessageId}`)
 
   return {
-    providerMessageId: providerMessageId ? String(providerMessageId) : null,
-    status: isScheduled ? 'scheduled' : 'sent',
+    providerMessageId,
+    status: isScheduled ? 'scheduled' : 'sending',
     scheduled: isScheduled,
     raw: body
   }

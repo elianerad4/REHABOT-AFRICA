@@ -141,7 +141,7 @@ export default function Admin() {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
         <TopBar />
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
@@ -164,7 +164,7 @@ export default function Admin() {
         }
       />
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <PageHeader title="Rehabot Africa — Admin Panel" description="Overview of all clinics and platform activity." />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
@@ -240,7 +240,7 @@ export default function Admin() {
             {physios.length === 0 ? (
               <EmptyState title="No clinics have signed up yet." />
             ) : (
-              <Table>
+              <Table className="min-w-[640px]">
                 <THead>
                   <Th>Physio / Clinic</Th>
                   <Th>Patients</Th>
@@ -327,7 +327,7 @@ export default function Admin() {
             ) : categories.length === 0 ? (
               <EmptyState title="No categories yet." />
             ) : (
-              <Table>
+              <Table className="min-w-[640px]">
                 <THead>
                   <Th>Category</Th>
                   <Th>Slug</Th>
@@ -412,7 +412,7 @@ function CategoryForm({ category, onCancel, onSave }) {
           <X className="w-4 h-4" strokeWidth={2} />
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input label="Name" required value={form.name} onChange={(e) => updateName(e.target.value)} placeholder="e.g. Shoulder Pain" />
         <Input
           label="Slug"
@@ -423,7 +423,7 @@ function CategoryForm({ category, onCancel, onSave }) {
         />
       </div>
       <Textarea label="Description" rows={2} value={form.description} onChange={(e) => update('description', e.target.value)} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Input label="Body region" value={form.body_region} onChange={(e) => update('body_region', e.target.value)} placeholder="e.g. Shoulder" />
         <Input label="Icon key" value={form.icon} onChange={(e) => update('icon', e.target.value)} placeholder="e.g. dumbbell" />
         <Input label="Display order" type="number" value={form.display_order} onChange={(e) => update('display_order', e.target.value)} />

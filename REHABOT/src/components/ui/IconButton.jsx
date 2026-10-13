@@ -5,9 +5,9 @@ const VARIANTS = {
 }
 
 const SIZES = {
-  sm: 'w-8 h-8 rounded-lg',
-  md: 'w-10 h-10 rounded-lg',
-  lg: 'w-11 h-11 rounded-xl'
+  sm: 'w-10 h-10 rounded-lg',
+  md: 'w-11 h-11 rounded-lg',
+  lg: 'w-12 h-12 rounded-xl'
 }
 
 export default function IconButton({

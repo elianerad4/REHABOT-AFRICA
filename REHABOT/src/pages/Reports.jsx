@@ -92,7 +92,7 @@ export default function Reports() {
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
       <TopBar back={() => navigate('/dashboard')} />
 
-      <div className="max-w-3xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-3xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <PageHeader title="Weekly Reports" description="Generate a clinical adherence and pain report for a patient." />
 
         <Card padding="lg" className="mb-6">

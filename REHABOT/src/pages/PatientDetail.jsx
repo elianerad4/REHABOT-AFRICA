@@ -289,7 +289,7 @@ export default function PatientDetail() {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
         <TopBar back={() => navigate('/dashboard')} />
-        <div className="max-w-5xl mx-auto px-5 sm:px-6 py-8 space-y-6">
+        <div className="max-w-5xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8 space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
           </div>
@@ -325,7 +325,7 @@ export default function PatientDetail() {
         }
       />
 
-      <div className="max-w-5xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-5xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">

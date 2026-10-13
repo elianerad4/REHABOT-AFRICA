@@ -72,7 +72,7 @@ export default function Programmes() {
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
       <TopBar back={() => navigate('/dashboard')} />
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <PageHeader
           title="Weekly Programmes"
           description="Plan patient-specific weekly programmes with different exercises on each day."

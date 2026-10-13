@@ -17,12 +17,22 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     }
   }, [open, onClose])
 
-  const maxWidth = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
+  const maxWidth = {
+    sm: 'sm:max-w-sm',
+    md: 'sm:max-w-lg',
+    lg: 'sm:max-w-2xl',
+    xl: 'sm:max-w-4xl'
+  }[size]
 
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -32,11 +42,12 @@ export default function Modal({ open, onClose, title, children, footer, size = '
             onClick={onClose}
           />
           <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-            className={`relative w-full ${maxWidth} bg-white dark:bg-surface-dark-raised rounded-xl shadow-popover max-h-[88vh] flex flex-col`}
+            initial={{ opacity: 0, y: 48 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 32 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            className={`relative w-full ${maxWidth} bg-white dark:bg-surface-dark-raised rounded-t-2xl sm:rounded-xl shadow-popover max-h-[92vh] sm:max-h-[88vh] flex flex-col`}
           >
             {title && (
               <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0">
@@ -44,13 +55,13 @@ export default function Modal({ open, onClose, title, children, footer, size = '
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
                 >
-                  <X className="w-4.5 h-4.5" strokeWidth={2} />
+                  <X className="w-5 h-5" strokeWidth={2} />
                 </button>
               </div>
             )}
-            <div className="px-6 py-5 overflow-y-auto">{children}</div>
+            <div className="px-6 py-5 overflow-y-auto overscroll-contain">{children}</div>
             {footer && (
               <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 flex justify-end gap-3 flex-shrink-0">
                 {footer}

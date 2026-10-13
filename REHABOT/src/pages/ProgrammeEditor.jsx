@@ -369,8 +369,8 @@ export default function ProgrammeEditor() {
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
-        <TopBar back={() => navigate('/programmes')} />
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">Loading…</div>
+        <TopBar back={() => navigate('/programmes')} hideNav />
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">Loading…</div>
       </div>
     )
   }
@@ -379,14 +379,14 @@ export default function ProgrammeEditor() {
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
-      <TopBar back={() => navigate('/programmes')} />
+      <TopBar back={() => navigate('/programmes')} hideNav />
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <PageHeader
           title={id ? 'Edit Programme' : 'New Weekly Programme'}
           description="Prescribe different exercises and dosages for each day of the week."
           action={
-            <div className="flex items-center gap-2.5">
+            <div className="hidden lg:flex items-center gap-2.5">
               {saveStatus === 'saving' && <span className="text-xs text-neutral-400">Saving…</span>}
               {saveStatus === 'saved' && <span className="text-xs text-success-600 dark:text-green-400">Saved</span>}
               {saveStatus === 'error' && <span className="text-xs text-danger-500">Save failed</span>}
@@ -519,6 +519,20 @@ export default function ProgrammeEditor() {
           </div>
         )}
       </Modal>
+
+      {/* Mobile sticky action bar */}
+      <div
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-surface-dark-raised/95 backdrop-blur-sm border-t border-neutral-200 dark:border-neutral-800"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-3 flex gap-2">
+          <Button variant="secondary" className="flex-1" loading={saveStatus === 'saving'} onClick={saveDraft}>
+            {saveStatus === 'saved' ? 'Saved ✓' : 'Save Draft'}
+          </Button>
+          <Button variant="secondary" className="flex-1" onClick={runValidation}>Validate</Button>
+          <Button className="flex-1" loading={publishing} onClick={publish}>Publish</Button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -589,14 +603,14 @@ function DayCard({ day, onUpdate, onAdd, onRemove, onMove, onUpdateExercise }) {
                   : <Badge variant="neutral" className="flex-shrink-0">no video</Badge>}
                 {describeDosage(ex) && <span className="text-xs text-neutral-400 truncate">— {describeDosage(ex)}</span>}
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button onClick={() => onMove(idx, -1)} disabled={idx === 0} className="text-neutral-400 hover:text-neutral-600 disabled:opacity-30" aria-label="Move up"><ArrowUp className="w-4 h-4" strokeWidth={2} /></button>
-                <button onClick={() => onMove(idx, 1)} disabled={idx === day.exercises.length - 1} className="text-neutral-400 hover:text-neutral-600 disabled:opacity-30" aria-label="Move down"><ArrowDown className="w-4 h-4" strokeWidth={2} /></button>
-                <button onClick={() => onRemove(idx)} className="text-danger-400 hover:text-danger-600" aria-label="Remove"><Trash2 className="w-4 h-4" strokeWidth={2} /></button>
+              <div className="flex items-center flex-shrink-0">
+                <button onClick={() => onMove(idx, -1)} disabled={idx === 0} className="p-2 text-neutral-400 hover:text-neutral-600 disabled:opacity-30 rounded-lg" aria-label="Move up"><ArrowUp className="w-5 h-5" strokeWidth={2} /></button>
+                <button onClick={() => onMove(idx, 1)} disabled={idx === day.exercises.length - 1} className="p-2 text-neutral-400 hover:text-neutral-600 disabled:opacity-30 rounded-lg" aria-label="Move down"><ArrowDown className="w-5 h-5" strokeWidth={2} /></button>
+                <button onClick={() => onRemove(idx)} className="p-2 text-danger-400 hover:text-danger-600 rounded-lg" aria-label="Remove"><Trash2 className="w-5 h-5" strokeWidth={2} /></button>
               </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               <DosageInput label="Sets" value={ex.sets} onChange={(v) => onUpdateExercise(idx, { sets: v })} />
               <DosageInput label="Reps" value={ex.reps} onChange={(v) => onUpdateExercise(idx, { reps: v })} />
               <DosageInput label="Hold (s)" value={ex.hold_seconds} onChange={(v) => onUpdateExercise(idx, { hold_seconds: v })} />

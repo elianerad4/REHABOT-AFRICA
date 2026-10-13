@@ -168,7 +168,7 @@ function Navbar() {
 
 function WhatsAppChat({ messages, animateIn = false }) {
   return (
-    <div className="w-[300px] sm:w-[340px] bg-white rounded-3xl shadow-popover border border-neutral-200 overflow-hidden mx-auto">
+    <div className="w-full max-w-[340px] bg-white rounded-3xl shadow-popover border border-neutral-200 overflow-hidden mx-auto">
       <div className="bg-whatsapp-dark px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
           RA

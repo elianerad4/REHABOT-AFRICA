@@ -215,7 +215,7 @@ export default function ExerciseLibrary() {
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
       <TopBar back={() => (activeCategory ? setActiveCategory(null) : navigate('/dashboard'))} />
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         {activeCategory && (
           <button
             onClick={() => setActiveCategory(null)}
@@ -479,7 +479,7 @@ function ExerciseForm({ exercise, categories, initialCategoryIds, onClose, onSav
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Exercise name (English)" required value={form.name_en} onChange={(e) => update('name_en', e.target.value)} />
         <Input label="Name (Swahili)" value={form.name_sw} onChange={(e) => update('name_sw', e.target.value)} />
       </div>
@@ -501,7 +501,7 @@ function ExerciseForm({ exercise, categories, initialCategoryIds, onClose, onSav
       <Textarea label="Description" rows={2} value={form.description_en} onChange={(e) => update('description_en', e.target.value)} />
       <Textarea label="Instructions" rows={3} value={form.instructions} onChange={(e) => update('instructions', e.target.value)} placeholder="Step-by-step cues for the patient" />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Select label="Difficulty" value={form.difficulty} onChange={(e) => update('difficulty', e.target.value)}>
           <option value="">Not set</option>
           {DIFFICULTIES.map((d) => <option key={d} value={d}>{DIFFICULTY_LABEL[d]}</option>)}
@@ -511,7 +511,7 @@ function ExerciseForm({ exercise, categories, initialCategoryIds, onClose, onSav
 
       <div>
         <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Default dosage — a starting template only; the physiotherapist sets the actual prescription per patient.</p>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Input label="Sets" type="number" min="0" value={form.default_sets} onChange={(e) => update('default_sets', e.target.value)} />
           <Input label="Reps" type="number" min="0" value={form.default_reps} onChange={(e) => update('default_reps', e.target.value)} />
           <Input label="×/week" type="number" min="0" value={form.default_frequency_per_week} onChange={(e) => update('default_frequency_per_week', e.target.value)} />
@@ -522,7 +522,7 @@ function ExerciseForm({ exercise, categories, initialCategoryIds, onClose, onSav
       <Textarea label="Precautions" rows={2} value={form.precautions} onChange={(e) => update('precautions', e.target.value)} />
       <Textarea label="Contraindications" rows={2} value={form.contraindications} onChange={(e) => update('contraindications', e.target.value)} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Video URL" value={form.video_url} onChange={(e) => update('video_url', e.target.value)} placeholder="https://…" icon={Video} />
         <Input label="Thumbnail URL" value={form.thumbnail_url} onChange={(e) => update('thumbnail_url', e.target.value)} placeholder="https://… (optional)" />
       </div>

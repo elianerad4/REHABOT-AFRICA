@@ -78,7 +78,7 @@ export default function Settings() {
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
       <TopBar back={() => navigate('/dashboard')} />
 
-      <div className="max-w-2xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-2xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <PageHeader title="Settings" description="Manage your profile and clinic information." />
 
         <Card padding="lg">

@@ -78,7 +78,7 @@ export default function ProgrammeDetail() {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
         <TopBar back={() => navigate('/programmes')} />
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">Loading…</div>
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">Loading…</div>
       </div>
     )
   }
@@ -100,7 +100,7 @@ export default function ProgrammeDetail() {
     <div className="min-h-screen bg-neutral-50 dark:bg-surface-dark">
       <TopBar back={() => navigate('/programmes')} />
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 pt-8 pb-24 lg:pb-8">
         <PageHeader
           title={programme.name}
           description={`${patient?.full_name ?? 'Patient'} · ${programme.indication || patient?.diagnosis || '—'}`}

@@ -149,6 +149,7 @@ Deno.serve(async (req) => {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -253,6 +254,19 @@ Deno.serve(async (req) => {
       color: #9ca3af;
       text-align: center;
     }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    @media (max-width: 640px) {
+      body { padding: 16px; line-height: 1.5; }
+      .header { flex-direction: column; gap: 8px; }
+      .report-meta { text-align: left; }
+      .info-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat-box { padding: 10px; }
+      .stat-box .value { font-size: 22px; }
+      table { font-size: 12px; }
+      th, td { padding: 6px 8px; }
+      h1 { font-size: 17px; }
+    }
   </style>
 </head>
 <body>
@@ -300,51 +314,55 @@ Deno.serve(async (req) => {
 
   <div class="section">
     <h3>Daily Adherence</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Exercise Confirmed</th>
-          <th>Reply Received</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${adherenceLogs?.map((log: any) => `
+    <div class="table-scroll">
+      <table>
+        <thead>
           <tr>
-            <td>${new Date(log.log_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
-            <td class="${log.confirmed ? 'confirmed' : 'missed'}">
-              ${log.confirmed ? '✓ Yes' : '✗ No'}
-            </td>
-            <td>${log.reply_received ? 'Yes' : 'No'}</td>
+            <th>Date</th>
+            <th>Exercise Confirmed</th>
+            <th>Reply Received</th>
           </tr>
-        `).join('') ?? '<tr><td colspan="3">No data</td></tr>'}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          ${adherenceLogs?.map((log: any) => `
+            <tr>
+              <td>${new Date(log.log_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+              <td class="${log.confirmed ? 'confirmed' : 'missed'}">
+                ${log.confirmed ? '✓ Yes' : '✗ No'}
+              </td>
+              <td>${log.reply_received ? 'Yes' : 'No'}</td>
+            </tr>
+          `).join('') ?? '<tr><td colspan="3">No data</td></tr>'}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="section">
     <h3>Pain Score Log</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Date & Time</th>
-          <th>Pain Score</th>
-          <th>Level</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${painLogs && painLogs.length > 0
-          ? painLogs.map((log: any) => `
-            <tr>
-              <td>${new Date(log.logged_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-              <td><strong>${log.score}/10</strong></td>
-              <td>${log.score <= 3 ? '🟢 Mild' : log.score <= 6 ? '🟡 Moderate' : '🔴 Severe'}</td>
-            </tr>
-          `).join('')
-          : '<tr><td colspan="3">No pain scores recorded this week</td></tr>'
-        }
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Pain Score</th>
+            <th>Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${painLogs && painLogs.length > 0
+            ? painLogs.map((log: any) => `
+              <tr>
+                <td>${new Date(log.logged_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                <td><strong>${log.score}/10</strong></td>
+                <td>${log.score <= 3 ? '🟢 Mild' : log.score <= 6 ? '🟡 Moderate' : '🔴 Severe'}</td>
+              </tr>
+            `).join('')
+            : '<tr><td colspan="3">No pain scores recorded this week</td></tr>'
+          }
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="section" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:15px;">

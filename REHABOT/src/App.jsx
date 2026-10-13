@@ -15,6 +15,9 @@ import ExerciseLibrary from './pages/ExerciseLibrary'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Admin from './pages/Admin'
+import Programmes from './pages/Programmes'
+import ProgrammeEditor from './pages/ProgrammeEditor'
+import ProgrammeDetail from './pages/ProgrammeDetail'
 
 export default function App() {
   return (
@@ -32,6 +35,10 @@ export default function App() {
               <Route path="/add-patient" element={<ProtectedRoute><AddPatient /></ProtectedRoute>} />
               <Route path="/patient/:id" element={<ProtectedRoute><PatientDetail /></ProtectedRoute>} />
               <Route path="/library" element={<ProtectedRoute><ExerciseLibrary /></ProtectedRoute>} />
+              <Route path="/programmes" element={<ProtectedRoute><Programmes /></ProtectedRoute>} />
+              <Route path="/programmes/new" element={<ProtectedRoute><ProgrammeEditor /></ProtectedRoute>} />
+              <Route path="/programmes/:id/edit" element={<ProtectedRoute><ProgrammeEditor /></ProtectedRoute>} />
+              <Route path="/programme/:id" element={<ProtectedRoute><ProgrammeDetail /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

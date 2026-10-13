@@ -311,10 +311,21 @@ Deno.serve(async (req) => {
 
     // 1. Pain score (1-10)
     if (isNumber && numeric >= 1 && numeric <= 10) {
+      // Link the score to today's session when it is unambiguous (exactly one
+      // reminder-sent session today). Ambiguity never blocks the pain log.
+      const { data: todaySessions } = await supabase
+        .from('programme_sessions')
+        .select('id')
+        .eq('patient_id', patient.id)
+        .eq('session_date', today)
+        .eq('reminder_status', 'sent')
+      const sessionId = todaySessions && todaySessions.length === 1 ? todaySessions[0].id : null
+
       await supabase.from('pain_logs').insert({
         patient_id: patient.id,
         score: numeric,
-        raw_reply: messageBody
+        raw_reply: messageBody,
+        session_id: sessionId
       })
       const reply = lang === 'sw'
         ? `Asante! Tumesajili maumivu yako: ${numeric}/10. Daktari wako ataona hii.`
@@ -327,12 +338,30 @@ Deno.serve(async (req) => {
       return okResponse
     }
 
-    const yesReplies = ['yes', 'ndiyo', 'ndio', 'done', 'nimefanya', 'yeah', 'yep', 'ok', 'okay']
+    const yesReplies = ['yes', 'ndiyo', 'ndio', 'done', 'nimefanya', 'nimemaliza', 'nimekamilisha', 'yeah', 'yep', 'ok', 'okay']
     if (yesReplies.includes(lowered)) {
+      // Resolve the completion to today's session only when it is unambiguous
+      // (exactly one reminder-sent session today). If it is ambiguous, we still
+      // record adherence but never silently mark the wrong session completed.
+      const { data: todaySessions } = await supabase
+        .from('programme_sessions')
+        .select('id')
+        .eq('patient_id', patient.id)
+        .eq('session_date', today)
+        .eq('reminder_status', 'sent')
+        .eq('status', 'scheduled')
+      const sessionId = todaySessions && todaySessions.length === 1 ? todaySessions[0].id : null
+
       await supabase.from('adherence_logs')
-        .update({ confirmed: true, reply_received: true, reply_text: messageBody })
+        .update({ confirmed: true, reply_received: true, reply_text: messageBody, session_id: sessionId })
         .eq('patient_id', patient.id)
         .eq('log_date', today)
+
+      if (sessionId) {
+        await supabase.from('programme_sessions')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', sessionId)
+      }
       const reply = lang === 'sw'
         ? `Hongera! Umefanya vizuri leo. Endelea hivyo!`
         : `Well done! Great work today. Keep it up!`

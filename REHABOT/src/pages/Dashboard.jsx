@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, UserCheck, PauseCircle, UserX, Dumbbell, FileBarChart, Plus, Building2 } from 'lucide-react'
+import { Users, UserCheck, PauseCircle, UserX, Dumbbell, FileBarChart, Plus, Building2, CalendarDays } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getGreeting } from '../utils/getGreeting'
@@ -87,6 +87,9 @@ export default function Dashboard() {
           <div className="flex items-center gap-2.5">
             <Button variant="secondary" size="sm" icon={Dumbbell} onClick={() => navigate('/library')}>
               Exercise Library
+            </Button>
+            <Button variant="secondary" size="sm" icon={CalendarDays} onClick={() => navigate('/programmes')}>
+              Programmes
             </Button>
             <Button variant="secondary" size="sm" icon={FileBarChart} onClick={() => navigate('/reports')}>
               Reports
